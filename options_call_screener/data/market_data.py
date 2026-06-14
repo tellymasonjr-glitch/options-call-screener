@@ -1,0 +1,122 @@
+"""Equity quotes, historicals, and options chains via Yahoo Finance (no login)."""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Any
+
+import pandas as pd
+import yfinance as yf
+
+from analytics.greeks import call_greeks
+
+
+def _to_float(value: Any, default: float = 0.0) -> float:
+    try:
+        if value is None or pd.isna(value):
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _ticker_obj(symbol: str) -> yf.Ticker:
+    return yf.Ticker(symbol.upper().strip())
+
+
+def get_spot_price(ticker: str) -> float:
+    t = _ticker_obj(ticker)
+    price = _to_float(t.fast_info.get("lastPrice") or t.fast_info.get("regularMarketPrice"))
+    if price <= 0:
+        hist = t.history(period="5d")
+        if hist.empty:
+            raise RuntimeError(f"No quote data for {ticker}")
+        price = float(hist["Close"].iloc[-1])
+    return price
+
+
+def get_price_history(ticker: str) -> pd.DataFrame:
+    t = _ticker_obj(ticker)
+    hist = t.history(period="1y", interval="1d", auto_adjust=True)
+    if hist.empty:
+        raise RuntimeError(f"No historical data for {ticker}")
+
+    df = hist.reset_index()
+    df = df.rename(columns={"Date": "date", "Close": "close", "High": "high", "Low": "low", "Volume": "volume"})
+    df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None)
+    return df[["date", "close", "high", "low", "volume"]].sort_values("date").reset_index(drop=True)
+
+
+def dte_from_expiration(expiration: str) -> int:
+    exp_date = datetime.strptime(expiration, "%Y-%m-%d").date()
+    return (exp_date - date.today()).days
+
+
+def fetch_call_contracts(
+    ticker: str,
+    min_dte: int,
+    max_dte: int,
+    spot: float | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch call contracts within DTE window; Greeks computed when missing."""
+    t = _ticker_obj(ticker)
+    if spot is None:
+        spot = get_spot_price(ticker)
+
+    try:
+        expirations = list(t.options or [])
+    except Exception as exc:
+        raise RuntimeError(f"Could not load options expirations for {ticker}: {exc}") from exc
+
+    contracts: list[dict[str, Any]] = []
+
+    for exp in expirations:
+        dte = dte_from_expiration(exp)
+        if dte < 0 or dte < min_dte or dte > max_dte:
+            continue
+
+        try:
+            chain = t.option_chain(exp)
+        except Exception:
+            continue
+
+        calls = chain.calls
+        if calls is None or calls.empty:
+            continue
+
+        for _, row in calls.iterrows():
+            ask = _to_float(row.get("ask"))
+            bid = _to_float(row.get("bid"))
+            if ask <= 0:
+                ask = _to_float(row.get("lastPrice"))
+            if bid <= 0 and ask > 0:
+                bid = ask * 0.98
+
+            strike = _to_float(row.get("strike"))
+            iv = _to_float(row.get("impliedVolatility"))
+            if iv <= 0:
+                iv = 0.30
+
+            greeks = call_greeks(spot, strike, dte, iv)
+
+            contracts.append(
+                {
+                    "ticker": ticker.upper(),
+                    "option_id": str(row.get("contractSymbol", "")),
+                    "expiration": exp,
+                    "dte": dte,
+                    "strike": strike,
+                    "bid": bid,
+                    "ask": ask,
+                    "mark": _to_float(row.get("lastPrice")),
+                    "delta": greeks["delta"],
+                    "gamma": greeks["gamma"],
+                    "theta": greeks["theta"],
+                    "vega": greeks["vega"],
+                    "iv": iv,
+                    "open_interest": int(_to_float(row.get("openInterest"))),
+                    "volume": int(_to_float(row.get("volume"))),
+                }
+            )
+
+    return contracts
