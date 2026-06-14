@@ -30,6 +30,10 @@ DISPLAY_COLS = [
     "volume",
     "spread_pct",
     "conviction_score",
+    "size_tier",
+    "size_contracts",
+    "size_total_cost",
+    "size_risk_pct",
 ]
 
 SCALPER_DISPLAY_COLS = [
@@ -118,6 +122,9 @@ def render_simple_pick_list(ranked: pd.DataFrame, *, title: str, suffix: str = "
             f"{_format_strike(float(row['strike']))} "
             f"{_format_exp_short(str(row['expiration']))}{suffix}"
         )
+        contracts = int(row.get("size_contracts", 0) or 0)
+        if contracts > 0:
+            line += f" ×{contracts}"
         st.markdown(line)
 
 
@@ -337,6 +344,8 @@ def render_ticker_tab(result: TickerResult) -> None:
             st.caption("Try: Streamlit menu (⋮) → Clear cache, then hard refresh (Ctrl+Shift+R).")
 
         top = result.picks.iloc[0]
+        if "size_summary" in top and top.get("size_summary"):
+            st.info(str(top["size_summary"]))
         with st.expander("Why this conviction pick?", expanded=True):
             st.write(top.get("rationale", "No rationale available."))
 

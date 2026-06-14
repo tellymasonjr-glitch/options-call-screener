@@ -15,9 +15,10 @@ from analytics.scalper import (
 )
 from analytics.scoring import build_rationale, score_contracts, tag_picks
 from analytics.macro import MacroEnvironment, build_macro_environment
+from analytics.position_sizing import apply_sizing_to_picks
 from analytics.stock_profile import StockProfile, build_stock_profile
 from analytics.volatility import collect_iv_samples, iv_rank as calc_iv_rank
-from config import DELTA_BOUNDS, DELTA_BOUNDS_0DTE, CONVICTION_MIN_DTE
+from config import DELTA_BOUNDS, DELTA_BOUNDS_0DTE, CONVICTION_MIN_DTE, DEFAULT_BASE_RISK_PCT
 from data.earnings import expiration_near_earnings, fetch_earnings, upcoming_earnings_dates
 from data.market_data import fetch_call_contracts, get_price_history, get_spot_price
 from data.news_data import analyze_sentiment, fetch_news
@@ -32,6 +33,9 @@ class ScanConfig:
     risk_profile: str
     avoid_earnings: bool
     picks_per_ticker: int
+    bankroll: float = 0.0
+    base_risk_pct: float = DEFAULT_BASE_RISK_PCT
+    enable_position_sizing: bool = True
 
 
 @dataclass
@@ -124,6 +128,8 @@ def scan_ticker(
 
         if not picks.empty:
             picks["scan_mode"] = "conviction"
+            if config.enable_position_sizing and config.bankroll > 0:
+                picks = apply_sizing_to_picks(picks, config.bankroll, config.base_risk_pct)
             picks["rationale"] = picks.apply(
                 lambda row: build_rationale(row, spot, sentiment, profile), axis=1
             )

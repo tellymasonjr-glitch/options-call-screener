@@ -6,15 +6,21 @@ import streamlit as st
 
 from config import (
     CONVICTION_MIN_DTE,
+    DEFAULT_BANKROLL,
+    DEFAULT_BASE_RISK_PCT,
     DEFAULT_BUDGET,
     DEFAULT_MAX_DTE,
     DEFAULT_MIN_DTE,
     DEFAULT_PICKS_PER_TICKER,
     DEFAULT_TICKERS,
+    MAX_BANKROLL,
     MAX_BUDGET,
     MAX_DTE_LIMIT,
+    MAX_BASE_RISK_PCT,
     MAX_PICKS_PER_TICKER,
+    MIN_BANKROLL,
     MIN_BUDGET,
+    MIN_BASE_RISK_PCT,
     MIN_DTE_LIMIT,
 )
 from screener import ScanConfig
@@ -72,6 +78,30 @@ def render_sidebar() -> ScanConfig | None:
         value=DEFAULT_PICKS_PER_TICKER,
     )
 
+    st.sidebar.subheader("Position Sizing")
+    enable_position_sizing = st.sidebar.checkbox(
+        "Conviction-scaled sizing",
+        value=True,
+        help="Size contracts from bankroll + conviction tier (not raw Kelly).",
+    )
+    bankroll = st.sidebar.number_input(
+        "Total bankroll ($)",
+        min_value=MIN_BANKROLL,
+        max_value=MAX_BANKROLL,
+        value=DEFAULT_BANKROLL,
+        step=1000,
+        disabled=not enable_position_sizing,
+    )
+    base_risk_pct = st.sidebar.number_input(
+        "Base risk per trade (%)",
+        min_value=MIN_BASE_RISK_PCT,
+        max_value=MAX_BASE_RISK_PCT,
+        value=DEFAULT_BASE_RISK_PCT,
+        step=0.25,
+        disabled=not enable_position_sizing,
+        help="Tier 1 (85+): 1.25× · Tier 2 (70–84): 1.0× · Tier 3 (50–69): 0.5×",
+    )
+
     if st.sidebar.button("Clear cache & reload"):
         st.cache_data.clear()
         st.rerun()
@@ -93,4 +123,7 @@ def render_sidebar() -> ScanConfig | None:
         risk_profile=risk_profile,
         avoid_earnings=avoid_earnings,
         picks_per_ticker=int(picks_per_ticker),
+        bankroll=float(bankroll) if enable_position_sizing else 0.0,
+        base_risk_pct=float(base_risk_pct),
+        enable_position_sizing=enable_position_sizing,
     )

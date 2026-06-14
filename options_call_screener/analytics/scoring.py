@@ -202,4 +202,9 @@ def build_rationale(
             if float(row.get("macro_multiplier", 1.0) or 1.0) < 1.0
             else "."
         )
+        + (
+            f" {row['size_summary']}"
+            if row.get("size_summary")
+            else ""
+        )
     )

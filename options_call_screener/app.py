@@ -14,8 +14,9 @@ import streamlit as st
 from screener import run_scan
 from ui.results import render_header, render_results
 from ui.sidebar import render_sidebar
+from ui.sizing_sandbox import render_sizing_sandbox
 
-APP_VERSION = "3.2.0"
+APP_VERSION = "3.3.0"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(
@@ -27,6 +28,7 @@ st.set_page_config(
 
 def main() -> None:
     render_header(app_version=APP_VERSION, app_root=APP_ROOT)
+    render_sizing_sandbox(expanded=True)
 
     config = render_sidebar()
     if config is None:
@@ -37,7 +39,10 @@ def main() -> None:
     output = run_scan(config)
     progress.progress(1.0, text="Complete")
     progress.empty()
-    render_results(output.results, macro=output.macro)
+    if hasattr(output, "results"):
+        render_results(output.results, macro=output.macro)
+    else:
+        render_results(output)
 
 
 if __name__ == "__main__":
