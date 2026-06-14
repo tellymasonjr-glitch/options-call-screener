@@ -15,7 +15,7 @@ from screener import run_scan
 from ui.results import render_header, render_results
 from ui.sidebar import render_sidebar
 
-APP_VERSION = "3.1.1"
+APP_VERSION = "3.1.2"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(

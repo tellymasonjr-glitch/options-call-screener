@@ -9,5 +9,5 @@ echo Away from home: use Tailscale (see PHONE_ACCESS.md) or keep PC on + VPN
 echo.
 echo Leave this window open while using the screener.
 echo.
-streamlit run options_call_screener/app.py
+streamlit run options_call_screener/app.py --server.port 8503
 pause
