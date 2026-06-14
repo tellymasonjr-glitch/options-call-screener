@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from config import DISCLAIMER
+from analytics.macro import MacroEnvironment
 from screener import TickerResult
 
 DISPLAY_COLS = [
@@ -175,6 +176,27 @@ def render_header(app_version: str = "?", app_root: str = "") -> None:
     st.warning(DISCLAIMER)
 
 
+def render_macro_environment(macro: MacroEnvironment) -> None:
+    """Traffic-light macro header before ticker results."""
+    st.subheader("Macro Environment")
+    icons = {"green": "🟢", "yellow": "🟡", "red": "🔴"}
+    icon = icons.get(macro.traffic_light, "⚪")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("VIX", f"{macro.vix:.1f}")
+    c2.metric("SPY", f"${macro.spy_spot:.2f}")
+    c3.metric("SPY 20d SMA", f"${macro.spy_sma_20:.2f}")
+    c4.metric("Macro mult", f"{macro.macro_multiplier:.2f}x")
+
+    if macro.traffic_light == "red":
+        st.error(f"{icon} **{macro.headline}**")
+    elif macro.traffic_light == "yellow":
+        st.warning(f"{icon} **{macro.headline}**")
+    else:
+        st.success(f"{icon} **{macro.headline}**")
+    st.caption(macro.detail)
+
+
 def render_summary(results: list[TickerResult]) -> None:
     cols = st.columns(len(results))
     for col, result in zip(cols, results):
@@ -327,7 +349,12 @@ def render_ticker_tab(result: TickerResult) -> None:
             st.write(top_scalper.get("rationale", "No rationale available."))
 
 
-def render_results(results: list[TickerResult]) -> None:
+def render_results(
+    results: list[TickerResult],
+    macro: MacroEnvironment | None = None,
+) -> None:
+    if macro is not None:
+        render_macro_environment(macro)
     render_summary(results)
     ranked = _combine_ranked_picks(results)
     scalper_ranked = _combine_scalper_picks(results)

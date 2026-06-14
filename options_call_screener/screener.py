@@ -14,6 +14,7 @@ from analytics.scalper import (
     tag_scalper_picks,
 )
 from analytics.scoring import build_rationale, score_contracts, tag_picks
+from analytics.macro import MacroEnvironment, build_macro_environment
 from analytics.stock_profile import StockProfile, build_stock_profile
 from analytics.volatility import collect_iv_samples, iv_rank as calc_iv_rank
 from config import DELTA_BOUNDS, DELTA_BOUNDS_0DTE, CONVICTION_MIN_DTE
@@ -50,10 +51,17 @@ class TickerResult:
     contracts_passed_0dte: int = 0
 
 
+@dataclass
+class ScanOutput:
+    results: list[TickerResult]
+    macro: MacroEnvironment
+
+
 def scan_ticker(
     config: ScanConfig,
     ticker: str,
     spy_history: pd.DataFrame | None = None,
+    macro: MacroEnvironment | None = None,
 ) -> TickerResult:
     ticker = ticker.upper().strip()
 
@@ -107,8 +115,12 @@ def scan_ticker(
             sentiment,
             iv_samples,
             profile=profile,
+            macro_multiplier=macro.macro_multiplier if macro else 1.0,
         )
-        picks = tag_picks(scored, config.max_budget, config.picks_per_ticker)
+        if macro and macro.hard_block:
+            picks = pd.DataFrame()
+        else:
+            picks = tag_picks(scored, config.max_budget, config.picks_per_ticker)
 
         if not picks.empty:
             picks["scan_mode"] = "conviction"
@@ -158,6 +170,8 @@ def scan_ticker(
         )
 
 
-def run_scan(config: ScanConfig) -> list[TickerResult]:
+def run_scan(config: ScanConfig) -> ScanOutput:
     spy_history = get_price_history("SPY")
-    return [scan_ticker(config, t, spy_history) for t in config.tickers]
+    macro = build_macro_environment(spy_history)
+    results = [scan_ticker(config, t, spy_history, macro) for t in config.tickers]
+    return ScanOutput(results=results, macro=macro)

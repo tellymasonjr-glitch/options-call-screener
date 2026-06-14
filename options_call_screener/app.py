@@ -15,7 +15,7 @@ from screener import run_scan
 from ui.results import render_header, render_results
 from ui.sidebar import render_sidebar
 
-APP_VERSION = "3.1.2"
+APP_VERSION = "3.2.0"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(
@@ -34,10 +34,10 @@ def main() -> None:
         return
 
     progress = st.progress(0.0, text="Starting scan...")
-    results = run_scan(config)
+    output = run_scan(config)
     progress.progress(1.0, text="Complete")
     progress.empty()
-    render_results(results)
+    render_results(output.results, macro=output.macro)
 
 
 if __name__ == "__main__":

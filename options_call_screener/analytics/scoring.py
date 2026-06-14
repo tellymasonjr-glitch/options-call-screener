@@ -43,6 +43,7 @@ def score_contracts(
     iv_samples: list[float],
     profile: StockProfile | None = None,
     sma20: float | None = None,
+    macro_multiplier: float = 1.0,
 ) -> pd.DataFrame:
     if not contracts:
         return pd.DataFrame()
@@ -110,7 +111,10 @@ def score_contracts(
     )
 
     multiplier = sentiment.get("multiplier", 1.0)
-    df["conviction_score"] = (df["raw_conviction"] * multiplier).clip(0, 100)
+    df["macro_multiplier"] = macro_multiplier
+    df["conviction_score"] = (
+        df["raw_conviction"] * multiplier * macro_multiplier
+    ).clip(0, 100)
     return df.sort_values("conviction_score", ascending=False).reset_index(drop=True)
 
 
@@ -192,5 +196,10 @@ def build_rationale(
         f"1σ payoff ${row.get('payoff_1sigma', 0):+.0f}, R/R {row.get('risk_reward', 0):.2f}, "
         f"breakeven ${row.get('breakeven', 0):.2f}. "
         f"Sentiment {sentiment.get('mean_compound', 0):+.2f}. "
-        f"Conviction {row['conviction_score']:.1f}/100."
+        f"Conviction {row['conviction_score']:.1f}/100"
+        + (
+            f" (macro ×{row['macro_multiplier']:.2f})."
+            if float(row.get("macro_multiplier", 1.0) or 1.0) < 1.0
+            else "."
+        )
     )

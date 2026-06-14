@@ -44,6 +44,11 @@ SENTIMENT_MULT_NEUTRAL = 1.0
 
 EARNINGS_AVOID_DAYS = 3
 
+# Macro environment (VIX + SPY trend) — conviction scoring only
+VIX_CALM_MAX = 18
+VIX_ELEVATED_MAX = 25
+SPY_TREND_MULT = 0.7
+
 SCORE_WEIGHTS = {
     "ev_hv": 0.24,          # BS fair value at blended HV minus premium
     "prob_itm": 0.14,       # N(d2)
