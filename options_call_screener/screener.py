@@ -128,10 +128,15 @@ def scan_ticker(
 
         if not picks.empty:
             picks["scan_mode"] = "conviction"
+            picks["ticker"] = ticker
             if config.enable_position_sizing and config.bankroll > 0:
                 picks = apply_sizing_to_picks(picks, config.bankroll, config.base_risk_pct)
             picks["rationale"] = picks.apply(
-                lambda row: build_rationale(row, spot, sentiment, profile), axis=1
+                lambda row: build_rationale(
+                    row, spot, sentiment, profile,
+                    vix_hint=macro.vix if macro else None,
+                ),
+                axis=1,
             )
 
         scalper_picks = pd.DataFrame()

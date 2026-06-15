@@ -1,0 +1,2 @@
+Date,Ticker,Target Price,Expiry,Entry Ask ($),Contracts,Confidence Score,Size Tier,Market Weather,Safety Haircut,Notes,Exit Date,Exit Value ($),Profit/Loss ($),Hit Target? (Y/N)
+2026-06-14,AAPL,305,2026-07-17,3.20,1,63.5,Cautious size,Yellow,0.70,Paper trade - log macro + tier,,,,

@@ -6,6 +6,7 @@ dist/
 build/
 .env
 .env.*
+.streamlit/secrets.toml
 .venv/
 venv/
 .idea/

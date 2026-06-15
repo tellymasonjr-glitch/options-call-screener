@@ -27,12 +27,12 @@ class PositionSize:
 
 def conviction_tier_multiplier(score: float) -> tuple[str, float]:
     if score >= CONVICTION_TIER1_MIN:
-        return "Tier 1", CONVICTION_TIER1_MULT
+        return "High confidence", CONVICTION_TIER1_MULT
     if score >= CONVICTION_TIER2_MIN:
-        return "Tier 2", CONVICTION_TIER2_MULT
+        return "Solid setup", CONVICTION_TIER2_MULT
     if score >= CONVICTION_TIER3_MIN:
-        return "Tier 3", CONVICTION_TIER3_MULT
-    return "Below 50", 0.0
+        return "Cautious size", CONVICTION_TIER3_MULT
+    return "Skip", 0.0
 
 
 def calculate_position_size(
@@ -52,7 +52,7 @@ def calculate_position_size(
             risk_pct_of_bankroll=0.0,
             contracts=0,
             total_cost=0.0,
-            summary="No size — conviction below 50 or invalid inputs.",
+            summary="No size — confidence below 50 or invalid inputs.",
         )
 
     risk_budget = bankroll * (base_risk_pct / 100.0) * tier_mult
@@ -62,15 +62,15 @@ def calculate_position_size(
 
     if contracts < 1:
         summary = (
-            f"Risk budget ${risk_budget:,.0f} ({risk_pct:.2f}% of bankroll) — "
-            f"too small for 1 contract at ${cost_per_contract:,.0f} premium."
+            f"Budget ${risk_budget:,.0f} ({risk_pct:.2f}% of account) — "
+            f"not enough for even 1 contract at ${cost_per_contract:,.0f} total cost."
         )
     else:
         actual_pct = (total_cost / bankroll) * 100
         summary = (
-            f"Recommended: risk ${risk_budget:,.0f} ({risk_pct:.2f}% target) -> "
-            f"buy {contracts} contract{'s' if contracts != 1 else ''} "
-            f"(${total_cost:,.0f} deployed, {actual_pct:.2f}% of bankroll)."
+            f"Because confidence is {tier.lower()}, risk {risk_pct:.2f}% of your account "
+            f"(${risk_budget:,.0f}) -> buy **{contracts}** contract{'s' if contracts != 1 else ''} "
+            f"(${total_cost:,.0f} total, {actual_pct:.2f}% of account)."
         )
 
     return PositionSize(

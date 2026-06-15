@@ -81,24 +81,29 @@ def _macro_messages(
 ) -> tuple[str, str]:
     if hard_block:
         return (
-            f"Macro Alert: VIX at {vix:.1f} (> {VIX_ELEVATED_MAX}). "
-            "Long-call conviction picks blocked.",
-            f"SPY ${spy_spot:.2f} is {spy_trend} the 20-day SMA (${spy_sma_20:.2f}). "
-            "Market conditions hostile for new swing calls.",
+            f"Storm warning: Market fear (VIX {vix:.1f}) is above {VIX_ELEVATED_MAX}. "
+            "New swing-call ideas are blocked until things calm down.",
+            f"The overall market (SPY ${spy_spot:.2f}) is {spy_trend} its 20-day average "
+            f"(${spy_sma_20:.2f}). Too volatile for new long-call entries right now.",
         )
 
     if macro_mult < 1.0:
         parts = []
         if vix >= VIX_CALM_MAX:
-            parts.append(f"VIX elevated at {vix:.1f}")
+            parts.append(f"investors are nervous (VIX {vix:.1f})")
         if spy_trend == "below":
-            parts.append(f"SPY below 20-day SMA (${spy_sma_20:.2f})")
+            parts.append(
+                f"the overall market is in a short-term downtrend (below ${spy_sma_20:.2f} average)"
+            )
         return (
-            f"Caution: {' · '.join(parts)}. Conviction scores scaled ×{macro_mult:.2f}.",
-            f"SPY ${spy_spot:.2f} · VIX {vix:.1f} · macro multiplier {macro_mult:.2f}.",
+            f"Caution: {' and '.join(parts)}. "
+            f"All confidence scores reduced by {int((1 - macro_mult) * 100)}% to protect capital.",
+            f"Market price SPY ${spy_spot:.2f} · Fear gauge VIX {vix:.1f} · "
+            f"Safety haircut {macro_mult:.2f}x applied to every score.",
         )
 
     return (
-        f"Macro OK: VIX {vix:.1f}, SPY ${spy_spot:.2f} above 20-day SMA (${spy_sma_20:.2f}).",
-        "Calm volatility and supportive broad-market trend for swing calls.",
+        f"Clear skies: Fear is low (VIX {vix:.1f}) and the market is trending up "
+        f"(SPY ${spy_spot:.2f} above ${spy_sma_20:.2f} average).",
+        "Good environment for swing-call ideas — no safety haircut on scores.",
     )

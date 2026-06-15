@@ -9,6 +9,7 @@ import pandas as pd
 from analytics.pricing import compute_trade_metrics
 from analytics.stock_profile import StockProfile
 from analytics.volatility import iv_rank, iv_hv_score
+from analytics.plain_rationale import generate_plain_english_rationale
 from config import SCORE_WEIGHTS
 
 
@@ -169,42 +170,8 @@ def build_rationale(
     spot: float,
     sentiment: dict,
     profile: StockProfile | None = None,
+    vix_hint: float | None = None,
 ) -> str:
-    if profile:
-        sma_stack = "/".join(
-            "↑" if v else "↓"
-            for v in (profile.above_sma_20, profile.above_sma_50, profile.above_sma_200)
-        )
-        behavior = (
-            f"Stock profile {profile.profile_score:.0f}/100 — "
-            f"SMA stack (20/50/200) {sma_stack}, "
-            f"RSI {profile.rsi_14:.0f}, "
-            f"52w range {profile.pct_52w_range:.0f}%, "
-            f"vs SPY 20d {profile.rel_strength_20:+.1%}, "
-            f"β₆₀ {profile.beta_60:.2f}, "
-            f"HV blend {profile.hv_30:.0%}/{profile.hv_60:.0%}/{profile.hv_90:.0%}. "
-        )
-    else:
-        behavior = ""
-
-    return (
-        f"Long {row['ticker']} ${row['strike']:.0f} call exp {row['expiration']} "
-        f"({int(row['dte'])} DTE). {behavior}"
-        f"N(d2)={row['prob_itm']:.1%}, BS fair(HV) ${row.get('bs_fair_hv', 0):.2f} vs ask ${row['ask']:.2f} "
-        f"(edge {row.get('edge_pct', 0):+.1%}). "
-        f"IV/HV {row.get('iv_hv_ratio', 1):.2f}, IV rank {row['iv_rank']:.0f}. "
-        f"1σ payoff ${row.get('payoff_1sigma', 0):+.0f}, R/R {row.get('risk_reward', 0):.2f}, "
-        f"breakeven ${row.get('breakeven', 0):.2f}. "
-        f"Sentiment {sentiment.get('mean_compound', 0):+.2f}. "
-        f"Conviction {row['conviction_score']:.1f}/100"
-        + (
-            f" (macro ×{row['macro_multiplier']:.2f})."
-            if float(row.get("macro_multiplier", 1.0) or 1.0) < 1.0
-            else "."
-        )
-        + (
-            f" {row['size_summary']}"
-            if row.get("size_summary")
-            else ""
-        )
+    return generate_plain_english_rationale(
+        row, sentiment, profile, vix_hint=vix_hint
     )

@@ -24,95 +24,125 @@ from config import (
     MIN_DTE_LIMIT,
 )
 from screener import ScanConfig
+from ui.copy import (
+    HELP_BANKROLL,
+    HELP_BASE_RISK,
+    HELP_CUSTOM_TICKER,
+    HELP_DTE,
+    HELP_MAX_COST,
+    HELP_RISK_PROFILE,
+    HELP_SIZING_TOGGLE,
+    HELP_SKIP_EARNINGS,
+    HELP_TICKERS,
+    HELP_TOP_IDEAS,
+    SIDEBAR_RISK,
+    SIDEBAR_SETUP,
+)
+
+_RISK_LABELS = {
+    "conservative": "Careful — safer strikes, smaller moves needed",
+    "moderate": "Balanced — default for most users",
+    "aggressive": "Bold — closer strikes, bigger payoff if right",
+}
 
 
 def render_sidebar() -> ScanConfig | None:
-    st.sidebar.header("Scan Settings")
+    st.sidebar.header(SIDEBAR_SETUP)
 
     tickers = st.sidebar.multiselect(
-        "Tickers",
+        "Companies to Scan",
         options=DEFAULT_TICKERS + ["SPY", "TSLA", "NVDA", "MSFT", "AMZN"],
         default=DEFAULT_TICKERS,
+        help=HELP_TICKERS,
     )
-    custom = st.sidebar.text_input("Add custom ticker (optional)")
+    custom = st.sidebar.text_input(
+        "Add another symbol (optional)",
+        help=HELP_CUSTOM_TICKER,
+    )
     if custom.strip():
         tickers = list(dict.fromkeys(tickers + [custom.strip().upper()]))
 
     max_budget = st.sidebar.number_input(
-        "Max budget per contract ($)",
+        "Max Cost per Trade ($)",
         min_value=MIN_BUDGET,
         max_value=MAX_BUDGET,
         value=DEFAULT_BUDGET,
         step=50,
+        help=HELP_MAX_COST,
     )
 
     dte_range = st.sidebar.slider(
-        "Days to expiration (DTE)",
+        "Time Limit — Days Until Expiry",
         min_value=MIN_DTE_LIMIT,
         max_value=MAX_DTE_LIMIT,
         value=(DEFAULT_MIN_DTE, DEFAULT_MAX_DTE),
-        help=(
-            f"Set left handle to 0 for same-day (0DTE) calls — scored separately as scalper picks. "
-            f"Conviction scoring uses {CONVICTION_MIN_DTE}+ DTE."
-        ),
+        help=HELP_DTE,
         key="dte_range_slider_v2",
     )
     if dte_range[0] == 0:
         st.sidebar.warning(
-            "0 DTE enabled — same-day calls use volume/gamma scalper scoring, "
-            f"not conviction EV. Conviction scan still runs at {CONVICTION_MIN_DTE}–{dte_range[1]} DTE."
+            "Same-day (0DTE) mode is on — those contracts use a separate quick-scalp score, "
+            f"not long-term confidence. Regular ideas still scan {CONVICTION_MIN_DTE}–{dte_range[1]} days out."
         )
 
     risk_profile = st.sidebar.selectbox(
-        "Risk profile",
+        "How Aggressive?",
         options=["conservative", "moderate", "aggressive"],
         index=1,
+        format_func=lambda k: _RISK_LABELS[k],
+        help=HELP_RISK_PROFILE,
     )
 
-    avoid_earnings = st.sidebar.checkbox("Avoid earnings week", value=True)
+    avoid_earnings = st.sidebar.checkbox(
+        "Skip Earnings Weeks",
+        value=True,
+        help=HELP_SKIP_EARNINGS,
+    )
 
     picks_per_ticker = st.sidebar.slider(
-        "Picks per ticker",
+        "Top Ideas per Stock",
         min_value=1,
         max_value=MAX_PICKS_PER_TICKER,
         value=DEFAULT_PICKS_PER_TICKER,
+        help=HELP_TOP_IDEAS,
     )
 
-    st.sidebar.subheader("Position Sizing")
+    st.sidebar.subheader(SIDEBAR_RISK)
     enable_position_sizing = st.sidebar.checkbox(
-        "Conviction-scaled sizing",
+        "Auto-calculate position size",
         value=True,
-        help="Size contracts from bankroll + conviction tier (not raw Kelly).",
+        help=HELP_SIZING_TOGGLE,
     )
     bankroll = st.sidebar.number_input(
-        "Total bankroll ($)",
+        "Your Total Trading Account ($)",
         min_value=MIN_BANKROLL,
         max_value=MAX_BANKROLL,
         value=DEFAULT_BANKROLL,
         step=1000,
         disabled=not enable_position_sizing,
+        help=HELP_BANKROLL,
     )
     base_risk_pct = st.sidebar.number_input(
-        "Base risk per trade (%)",
+        "Base Risk per Trade (%)",
         min_value=MIN_BASE_RISK_PCT,
         max_value=MAX_BASE_RISK_PCT,
         value=DEFAULT_BASE_RISK_PCT,
         step=0.25,
         disabled=not enable_position_sizing,
-        help="Tier 1 (85+): 1.25× · Tier 2 (70–84): 1.0× · Tier 3 (50–69): 0.5×",
+        help=HELP_BASE_RISK,
     )
 
-    if st.sidebar.button("Clear cache & reload"):
+    if st.sidebar.button("Clear cache & reload", help="Fix stale data or after an app update."):
         st.cache_data.clear()
         st.rerun()
 
-    analyze = st.sidebar.button("Analyze Market Opportunities", type="primary")
+    analyze = st.sidebar.button("Scan for Trading Ideas", type="primary")
 
     if not analyze:
         return None
 
     if not tickers:
-        st.sidebar.error("Select at least one ticker.")
+        st.sidebar.error("Pick at least one company to scan.")
         return None
 
     return ScanConfig(
