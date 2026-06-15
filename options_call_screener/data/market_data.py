@@ -151,3 +151,37 @@ def fetch_call_contracts(
             )
 
     return contracts
+
+
+def get_call_quote(ticker: str, strike: float, expiration: str) -> dict[str, float]:
+    """Look up bid/ask/last for one call contract."""
+    t = _ticker_obj(ticker)
+    exp = expiration[:10]
+
+    def _load_chain():
+        return t.option_chain(exp)
+
+    try:
+        chain = call_with_retry(_load_chain)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Could not load options for {ticker} exp {exp}: {exc}"
+        ) from exc
+
+    calls = chain.calls
+    if calls is None or calls.empty:
+        raise RuntimeError(f"No call chain for {ticker} exp {exp}")
+
+    match = calls[(calls["strike"] - strike).abs() < 0.01]
+    if match.empty:
+        raise RuntimeError(f"No ${strike:g} strike found for {ticker} exp {exp}")
+
+    row = match.iloc[0]
+    ask = _to_float(row.get("ask"))
+    bid = _to_float(row.get("bid"))
+    last = _to_float(row.get("lastPrice"))
+    if ask <= 0:
+        ask = last
+    if bid <= 0 and ask > 0:
+        bid = ask * 0.98
+    return {"ask": ask, "bid": bid, "last": last}

@@ -39,3 +39,8 @@ def fetch_news(ticker: str) -> list[dict]:
 @st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
 def fetch_earnings(ticker: str) -> list[dict]:
     return earnings_mod.fetch_earnings(ticker)
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def get_call_quote(ticker: str, strike: float, expiration: str) -> dict[str, float]:
+    return md.get_call_quote(ticker, strike, expiration)
