@@ -2,7 +2,32 @@
 
 DATA_SOURCE = "Yahoo Finance (yfinance) — v2.4"
 
-DEFAULT_TICKERS = ["AAPL", "IWM", "QQQ", "XLF"]
+# Low-budget paper-trade universe: ~$5–30 stocks, liquid options (tight spreads for yfinance)
+LOW_BUDGET_TICKERS = [
+    "F",
+    "SOFI",
+    "AAL",
+    "CCL",
+    "SNAP",
+    "INTC",
+    "HOOD",
+    "PFE",
+    "MARA",
+    "WBD",
+]
+
+# Index / sector ETFs — macro context (higher premiums, use for weather checks)
+BENCHMARK_TICKERS = ["SPY", "QQQ", "IWM", "XLF"]
+
+# Large-cap comparison (expensive contracts; optional)
+LARGE_CAP_TICKERS = ["AAPL", "MSFT", "AMZN", "NVDA", "TSLA"]
+
+TICKER_OPTIONS = sorted(
+    set(LOW_BUDGET_TICKERS + BENCHMARK_TICKERS + LARGE_CAP_TICKERS)
+)
+
+# Pre-selected on launch — full low-budget list for paper-trade logging
+DEFAULT_TICKERS = list(LOW_BUDGET_TICKERS)
 
 MIN_BUDGET = 50
 DEFAULT_BUDGET = 500

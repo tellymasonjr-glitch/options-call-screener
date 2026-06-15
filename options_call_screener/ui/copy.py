@@ -20,8 +20,9 @@ SIDEBAR_SETUP = "Your Trade Setup"
 SIDEBAR_RISK = "Risk Manager & Budget Calculator"
 
 HELP_TICKERS = (
-    "Enter the stock symbols of companies you want to investigate today "
-    "(for example AAPL for Apple)."
+    "Pick stocks to scan. The low-budget preset (F, SOFI, HOOD, etc.) uses cheap, "
+    "liquid options so position sizing can recommend 1–5 contracts. "
+    "SPY/QQQ/IWM are useful for macro context but have pricier contracts."
 )
 HELP_CUSTOM_TICKER = "Type one extra symbol and it will be added to today's scan."
 HELP_MAX_COST = (

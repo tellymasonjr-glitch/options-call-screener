@@ -13,6 +13,7 @@ from config import (
     DEFAULT_MIN_DTE,
     DEFAULT_PICKS_PER_TICKER,
     DEFAULT_TICKERS,
+    LOW_BUDGET_TICKERS,
     MAX_BANKROLL,
     MAX_BUDGET,
     MAX_DTE_LIMIT,
@@ -22,6 +23,7 @@ from config import (
     MIN_BUDGET,
     MIN_BASE_RISK_PCT,
     MIN_DTE_LIMIT,
+    TICKER_OPTIONS,
 )
 from screener import ScanConfig
 from ui.copy import (
@@ -51,9 +53,14 @@ def render_sidebar() -> ScanConfig | None:
 
     tickers = st.sidebar.multiselect(
         "Companies to Scan",
-        options=DEFAULT_TICKERS + ["SPY", "TSLA", "NVDA", "MSFT", "AMZN"],
+        options=TICKER_OPTIONS,
         default=DEFAULT_TICKERS,
         help=HELP_TICKERS,
+    )
+    st.sidebar.caption(
+        f"**Paper-trade preset:** {', '.join(LOW_BUDGET_TICKERS)} — "
+        "cheap, liquid options for $10–$100 contracts. "
+        "Trim to 3–5 symbols on mobile for faster scans."
     )
     custom = st.sidebar.text_input(
         "Add another symbol (optional)",
