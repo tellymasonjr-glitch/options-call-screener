@@ -23,6 +23,7 @@ from config import (
     MIN_BUDGET,
     MIN_BASE_RISK_PCT,
     MIN_DTE_LIMIT,
+    SCAN_WARN_TICKERS,
     TICKER_OPTIONS,
 )
 from screener import ScanConfig
@@ -58,9 +59,9 @@ def render_sidebar() -> ScanConfig | None:
         help=HELP_TICKERS,
     )
     st.sidebar.caption(
-        f"**Paper-trade preset:** {', '.join(LOW_BUDGET_TICKERS)} — "
-        "cheap, liquid options for $10–$100 contracts. "
-        "Trim to 3–5 symbols on mobile for faster scans."
+        f"**Default batch (5):** {', '.join(DEFAULT_TICKERS)} · "
+        f"**Full preset:** {', '.join(LOW_BUDGET_TICKERS)}. "
+        "Scan 5 at a time on Cloud, then add the next batch."
     )
     custom = st.sidebar.text_input(
         "Add another symbol (optional)",
@@ -68,6 +69,11 @@ def render_sidebar() -> ScanConfig | None:
     )
     if custom.strip():
         tickers = list(dict.fromkeys(tickers + [custom.strip().upper()]))
+    if len(tickers) > SCAN_WARN_TICKERS:
+        st.sidebar.warning(
+            f"**{len(tickers)} tickers** selected — Yahoo may rate-limit on Cloud. "
+            f"Stick to **{SCAN_WARN_TICKERS} or fewer** per scan for best reliability."
+        )
 
     max_budget = st.sidebar.number_input(
         "Max Cost per Trade ($)",

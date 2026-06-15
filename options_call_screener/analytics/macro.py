@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from config import SPY_TREND_MULT, VIX_CALM_MAX, VIX_ELEVATED_MAX
-from data.market_data import get_spot_price
+from data.cached_fetch import get_spot_price
 
 
 @dataclass(frozen=True)

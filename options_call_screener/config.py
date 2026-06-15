@@ -26,8 +26,8 @@ TICKER_OPTIONS = sorted(
     set(LOW_BUDGET_TICKERS + BENCHMARK_TICKERS + LARGE_CAP_TICKERS)
 )
 
-# Pre-selected on launch — full low-budget list for paper-trade logging
-DEFAULT_TICKERS = list(LOW_BUDGET_TICKERS)
+# Pre-selected on launch — first batch of 5 (reliable on Cloud; add more per scan)
+DEFAULT_TICKERS = LOW_BUDGET_TICKERS[:5]
 
 MIN_BUDGET = 50
 DEFAULT_BUDGET = 500
@@ -105,7 +105,9 @@ DELTA_BOUNDS = {
     "aggressive": (0.20, 0.65),
 }
 
-CACHE_TTL_SECONDS = 300
+CACHE_TTL_SECONDS = 600  # 10 min — reuse quotes between scans on Streamlit Cloud
+SCAN_TICKER_DELAY_SEC = 0.6  # pause between tickers to avoid Yahoo burst limits
+SCAN_WARN_TICKERS = 6  # sidebar heads-up above this count
 
 DISCLAIMER = (
     "Research tool only — not financial advice. "

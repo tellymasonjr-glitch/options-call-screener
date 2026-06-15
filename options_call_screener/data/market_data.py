@@ -9,6 +9,7 @@ import pandas as pd
 import yfinance as yf
 
 from analytics.greeks import call_greeks
+from data.yf_utils import call_with_retry
 
 
 def _to_float(value: Any, default: float = 0.0) -> float:
@@ -26,25 +27,47 @@ def _ticker_obj(symbol: str) -> yf.Ticker:
 
 def get_spot_price(ticker: str) -> float:
     t = _ticker_obj(ticker)
-    price = _to_float(t.fast_info.get("lastPrice") or t.fast_info.get("regularMarketPrice"))
-    if price <= 0:
-        hist = t.history(period="5d")
-        if hist.empty:
-            raise RuntimeError(f"No quote data for {ticker}")
-        price = float(hist["Close"].iloc[-1])
-    return price
+
+    def _fetch() -> float:
+        price = _to_float(
+            t.fast_info.get("lastPrice") or t.fast_info.get("regularMarketPrice")
+        )
+        if price <= 0:
+            hist = t.history(period="5d")
+            if hist.empty:
+                raise RuntimeError(f"No quote data for {ticker}")
+            price = float(hist["Close"].iloc[-1])
+        return price
+
+    return call_with_retry(_fetch)
 
 
 def get_price_history(ticker: str) -> pd.DataFrame:
     t = _ticker_obj(ticker)
-    hist = t.history(period="1y", interval="1d", auto_adjust=True)
-    if hist.empty:
-        raise RuntimeError(f"No historical data for {ticker}")
 
-    df = hist.reset_index()
-    df = df.rename(columns={"Date": "date", "Close": "close", "High": "high", "Low": "low", "Volume": "volume"})
-    df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None)
-    return df[["date", "close", "high", "low", "volume"]].sort_values("date").reset_index(drop=True)
+    def _fetch() -> pd.DataFrame:
+        hist = t.history(period="1y", interval="1d", auto_adjust=True)
+        if hist.empty:
+            raise RuntimeError(f"No historical data for {ticker}")
+
+        df = hist.reset_index()
+        df = df.rename(
+            columns={
+                "Date": "date",
+                "Close": "close",
+                "High": "high",
+                "Low": "low",
+                "Volume": "volume",
+            }
+        )
+        df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None)
+        return (
+            df[["date", "close", "high", "low", "volume"]]
+            .sort_values("date")
+            .reset_index(drop=True)
+        )
+
+    return call_with_retry(_fetch)
 
 
 def dte_from_expiration(expiration: str) -> int:
@@ -63,10 +86,15 @@ def fetch_call_contracts(
     if spot is None:
         spot = get_spot_price(ticker)
 
+    def _load_expirations() -> list[str]:
+        return list(t.options or [])
+
     try:
-        expirations = list(t.options or [])
+        expirations = call_with_retry(_load_expirations)
     except Exception as exc:
-        raise RuntimeError(f"Could not load options expirations for {ticker}: {exc}") from exc
+        raise RuntimeError(
+            f"Could not load options expirations for {ticker}: {exc}"
+        ) from exc
 
     contracts: list[dict[str, Any]] = []
 
@@ -75,8 +103,11 @@ def fetch_call_contracts(
         if dte < 0 or dte < min_dte or dte > max_dte:
             continue
 
+        def _load_chain(expiration: str = exp):
+            return t.option_chain(expiration)
+
         try:
-            chain = t.option_chain(exp)
+            chain = call_with_retry(_load_chain)
         except Exception:
             continue
 
