@@ -17,7 +17,7 @@ from ui.results import render_header, render_results
 from ui.sidebar import render_sidebar
 from ui.sizing_sandbox import render_sizing_sandbox
 
-APP_VERSION = "3.4.5"
+APP_VERSION = "3.4.2"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(
