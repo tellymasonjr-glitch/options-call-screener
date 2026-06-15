@@ -136,6 +136,43 @@ def _format_strike(strike: float) -> str:
     return str(int(strike)) if strike == int(strike) else f"{strike:g}"
 
 
+def _total_cost_dollars(row: pd.Series) -> float:
+    contracts = int(row.get("size_contracts", 0) or 0)
+    deployed = row.get("size_total_cost")
+    if contracts > 0 and deployed is not None and not pd.isna(deployed) and float(deployed) > 0:
+        return float(deployed)
+    cost = row.get("total_cost")
+    if cost is not None and not pd.isna(cost):
+        return float(cost)
+    return float(row.get("ask", 0) or 0) * 100
+
+
+def _pick_confidence(row: pd.Series) -> float | None:
+    for key in ("conviction_score", "scalper_score"):
+        val = row.get(key)
+        if val is not None and not pd.isna(val):
+            return float(val)
+    return None
+
+
+def _format_pick_line(row: pd.Series, *, suffix: str = "", numbered: bool = True) -> str:
+    """Paper-trade line; backslash-escape $ so Streamlit markdown does not break spacing."""
+    strike = _format_strike(float(row["strike"]))
+    expiry = _format_exp_short(str(row["expiration"]))
+    cost = _total_cost_dollars(row)
+    score = _pick_confidence(row)
+
+    prefix = f"{int(row['rank'])}. " if numbered else ""
+    line = (
+        f"{prefix}{row['ticker']} — buy call at \\${strike} target, "
+        f"expires {expiry}{suffix}"
+    )
+    if score is not None:
+        line += f" · confidence {score:.0f}/100"
+    line += f" · Total Cost: \\${cost:,.0f}"
+    return line
+
+
 def render_simple_pick_list(ranked: pd.DataFrame, *, title: str, suffix: str = "") -> None:
     """Simple numbered list for quick logging."""
     st.subheader(title)
@@ -145,18 +182,7 @@ def render_simple_pick_list(ranked: pd.DataFrame, *, title: str, suffix: str = "
         return
 
     for _, row in ranked.iterrows():
-        line = (
-            f"{int(row['rank'])}. {row['ticker']} — buy call at "
-            f"${_format_strike(float(row['strike']))} target, "
-            f"expires {_format_exp_short(str(row['expiration']))}{suffix}"
-        )
-        contracts = int(row.get("size_contracts", 0) or 0)
-        if contracts > 0:
-            line += f" · **{contracts} contract(s)**"
-        score = row.get("conviction_score")
-        if score is not None and not pd.isna(score):
-            line += f" · confidence **{float(score):.0f}/100**"
-        st.markdown(line)
+        st.markdown(_format_pick_line(row, suffix=suffix))
 
 
 def render_bottom_results(
