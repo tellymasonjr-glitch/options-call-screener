@@ -105,9 +105,7 @@ DELTA_BOUNDS = {
     "aggressive": (0.20, 0.65),
 }
 
-CACHE_TTL_SECONDS = 600  # 10 min — reuse quotes between scans on Streamlit Cloud
-SCAN_TICKER_DELAY_SEC = 0.6  # pause between tickers to avoid Yahoo burst limits
-SCAN_WARN_TICKERS = 6  # sidebar heads-up above this count
+CACHE_TTL_SECONDS = 300
 
 DISCLAIMER = (
     "Research tool only — not financial advice. "

@@ -38,9 +38,6 @@ _TAG_LABELS = {
     "0dte_scalper": "Same-day scalp",
 }
 
-SUMMARY_METRICS_PER_ROW = 3
-TICKER_TABS_MAX = 4  # above this count, use expanders instead of squished tabs
-
 DISPLAY_COLS = [
     "tag",
     "expiration",
@@ -295,86 +292,19 @@ def render_macro_environment(macro: MacroEnvironment) -> None:
 
 
 def render_summary(results: list[TickerResult]) -> None:
-    """Price cards in a wrapped grid (max 3 per row) so mobile stays readable."""
-    if not results:
-        return
-
-    st.subheader("Today's Prices")
-    for i in range(0, len(results), SUMMARY_METRICS_PER_ROW):
-        chunk = results[i : i + SUMMARY_METRICS_PER_ROW]
-        cols = st.columns(len(chunk))
-        for col, result in zip(cols, chunk):
-            with col:
-                if result.error:
-                    st.metric(result.ticker, "Error")
-                else:
-                    sent = result.sentiment.get("mean_compound", 0)
-                    st.metric(
-                        result.ticker,
-                        f"${result.spot:.2f}",
-                        delta=f"News tone {sent:+.2f}",
-                        help=(
-                            "Stock price now · news tone from recent headlines "
-                            "(-1 negative to +1 positive)."
-                        ),
-                    )
-
-    if len(results) > SUMMARY_METRICS_PER_ROW:
-        rows = []
-        for result in results:
+    cols = st.columns(len(results))
+    for col, result in zip(cols, results):
+        with col:
             if result.error:
-                rows.append(
-                    {
-                        "Stock": result.ticker,
-                        "Price": "Error",
-                        "News tone": "",
-                        "Best idea score": "",
-                    }
+                st.metric(result.ticker, "Error")
+            else:
+                sent = result.sentiment.get("mean_compound", 0)
+                st.metric(
+                    result.ticker,
+                    f"${result.spot:.2f}",
+                    delta=f"News tone {sent:+.2f}",
+                    help="Stock price now · news tone from recent headlines (-1 negative to +1 positive).",
                 )
-                continue
-            top_score = None
-            if not result.picks.empty:
-                top_score = float(result.picks.iloc[0]["conviction_score"])
-            rows.append(
-                {
-                    "Stock": result.ticker,
-                    "Price": f"${result.spot:.2f}",
-                    "News tone": f"{result.sentiment.get('mean_compound', 0):+.2f}",
-                    "Best idea score": f"{top_score:.0f}/100" if top_score else "—",
-                }
-            )
-        st.caption("Quick overview — scroll the table sideways on small screens if needed.")
-        st.dataframe(
-            pd.DataFrame(rows),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-
-def _ticker_expander_label(result: TickerResult) -> str:
-    if result.error:
-        return f"{result.ticker} — scan error"
-    top = None
-    if not result.picks.empty:
-        top = float(result.picks.iloc[0]["conviction_score"])
-    score_text = f" · best idea {top:.0f}/100" if top is not None else ""
-    return f"{result.ticker} — ${result.spot:.2f}{score_text}"
-
-
-def render_ticker_details(results: list[TickerResult]) -> None:
-    """Tabs for a few tickers; expanders when the list would crush the layout."""
-    st.subheader("Stock-by-Stock Breakdown")
-
-    if len(results) <= TICKER_TABS_MAX:
-        tabs = st.tabs([r.ticker for r in results])
-        for tab, result in zip(tabs, results):
-            with tab:
-                render_ticker_tab(result)
-        return
-
-    for i, result in enumerate(results):
-        with st.expander(_ticker_expander_label(result), expanded=(i == 0)):
-            render_ticker_tab(result)
 
 
 def _cell_float(value) -> float:
@@ -562,6 +492,9 @@ def render_results(
     scalper_ranked = _combine_scalper_picks(results)
     include_0dte = any(r.contracts_scanned_0dte > 0 for r in results)
 
-    render_ticker_details(results)
+    tabs = st.tabs([r.ticker for r in results])
+    for tab, result in zip(tabs, results):
+        with tab:
+            render_ticker_tab(result)
 
     render_bottom_results(ranked, scalper_ranked, include_0dte=include_0dte)

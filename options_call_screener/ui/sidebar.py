@@ -23,7 +23,6 @@ from config import (
     MIN_BUDGET,
     MIN_BASE_RISK_PCT,
     MIN_DTE_LIMIT,
-    SCAN_WARN_TICKERS,
     TICKER_OPTIONS,
 )
 from screener import ScanConfig
@@ -69,11 +68,6 @@ def render_sidebar() -> ScanConfig | None:
     )
     if custom.strip():
         tickers = list(dict.fromkeys(tickers + [custom.strip().upper()]))
-    if len(tickers) > SCAN_WARN_TICKERS:
-        st.sidebar.warning(
-            f"You selected **{len(tickers)}** stocks. Yahoo may rate-limit large scans on Cloud. "
-            f"For reliability, try **{SCAN_WARN_TICKERS} or fewer** per scan."
-        )
 
     max_budget = st.sidebar.number_input(
         "Max Cost per Trade ($)",
