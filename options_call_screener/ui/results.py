@@ -145,14 +145,25 @@ def render_simple_pick_list(ranked: pd.DataFrame, *, title: str, suffix: str = "
         return
 
     for _, row in ranked.iterrows():
+        cost_per = row.get("total_cost")
+        if cost_per is None or (isinstance(cost_per, float) and pd.isna(cost_per)):
+            cost_per = float(row.get("ask", 0) or 0) * 100
+        else:
+            cost_per = float(cost_per)
+
         line = (
             f"{int(row['rank'])}. {row['ticker']} — buy call at "
             f"${_format_strike(float(row['strike']))} target, "
             f"expires {_format_exp_short(str(row['expiration']))}{suffix}"
+            f" · **${cost_per:,.0f}/contract**"
         )
         contracts = int(row.get("size_contracts", 0) or 0)
         if contracts > 0:
-            line += f" · **{contracts} contract(s)**"
+            deployed = row.get("size_total_cost")
+            if deployed is not None and not pd.isna(deployed) and float(deployed) > 0:
+                line += f" · **{contracts} contract(s)** (${float(deployed):,.0f} total)"
+            else:
+                line += f" · **{contracts} contract(s)**"
         score = row.get("conviction_score")
         if score is not None and not pd.isna(score):
             line += f" · confidence **{float(score):.0f}/100**"
