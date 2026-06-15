@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -18,10 +19,10 @@ from analytics.macro import MacroEnvironment, build_macro_environment
 from analytics.position_sizing import apply_sizing_to_picks
 from analytics.stock_profile import StockProfile, build_stock_profile
 from analytics.volatility import collect_iv_samples, iv_rank as calc_iv_rank
-from config import DELTA_BOUNDS, DELTA_BOUNDS_0DTE, CONVICTION_MIN_DTE, DEFAULT_BASE_RISK_PCT
-from data.earnings import expiration_near_earnings, fetch_earnings, upcoming_earnings_dates
-from data.market_data import fetch_call_contracts, get_price_history, get_spot_price
-from data.news_data import analyze_sentiment, fetch_news
+from config import DELTA_BOUNDS, DELTA_BOUNDS_0DTE, CONVICTION_MIN_DTE, DEFAULT_BASE_RISK_PCT, SCAN_TICKER_DELAY_SEC
+from data.cached_fetch import fetch_call_contracts, fetch_earnings, fetch_news, get_price_history
+from data.earnings import expiration_near_earnings, upcoming_earnings_dates
+from data.news_data import analyze_sentiment
 
 
 @dataclass
@@ -89,7 +90,7 @@ def scan_ticker(
         raw_contracts: list[dict[str, Any]] = []
         if conviction_min <= conviction_max:
             raw_contracts = fetch_call_contracts(
-                ticker, conviction_min, conviction_max, spot=spot
+                ticker, conviction_min, conviction_max, spot
             )
         iv_samples = collect_iv_samples(raw_contracts)
 
@@ -143,7 +144,7 @@ def scan_ticker(
         scanned_0dte = 0
         passed_0dte = 0
         if include_0dte:
-            raw_0dte = fetch_call_contracts(ticker, 0, 0, spot=spot)
+            raw_0dte = fetch_call_contracts(ticker, 0, 0, spot)
             scanned_0dte = len(raw_0dte)
             delta_0dte_min, delta_0dte_max = DELTA_BOUNDS_0DTE
             filtered_0dte: list[dict[str, Any]] = []
@@ -181,8 +182,21 @@ def scan_ticker(
         )
 
 
-def run_scan(config: ScanConfig) -> ScanOutput:
+def run_scan(config: ScanConfig, progress=None) -> ScanOutput:
     spy_history = get_price_history("SPY")
     macro = build_macro_environment(spy_history)
-    results = [scan_ticker(config, t, spy_history, macro) for t in config.tickers]
+    results: list[TickerResult] = []
+    tickers = config.tickers
+    total = len(tickers)
+
+    for i, ticker in enumerate(tickers):
+        if progress is not None:
+            progress.progress(
+                i / max(total, 1),
+                text=f"Scanning {ticker} ({i + 1} of {total})...",
+            )
+        if i > 0:
+            time.sleep(SCAN_TICKER_DELAY_SEC)
+        results.append(scan_ticker(config, ticker, spy_history, macro))
+
     return ScanOutput(results=results, macro=macro)
