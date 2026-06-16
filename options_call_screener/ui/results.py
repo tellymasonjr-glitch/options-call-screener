@@ -445,7 +445,15 @@ def _render_pick_table(
     if "spread_pct" in display.columns:
         display["spread_pct"] = display["spread_pct"].map(lambda x: f"{x:.1%}")
     if "ev" in display.columns:
-        display["ev"] = display["ev"].map(lambda x: f"${float(x:+,.0f}" if pd.notna(x) else "—")
+        def _fmt_ev(x: object) -> str:
+            if x is None or (isinstance(x, float) and pd.isna(x)):
+                return "—"
+            try:
+                return f"${float(x):+,.0f}"
+            except (TypeError, ValueError):
+                return "—"
+
+        display["ev"] = display["ev"].map(_fmt_ev)
 
     visible = [c for c in cols if c in display.columns]
     cfg = column_config or {}
