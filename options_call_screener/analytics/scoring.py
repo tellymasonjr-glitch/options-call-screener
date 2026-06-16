@@ -7,13 +7,14 @@ from typing import Any
 import pandas as pd
 
 from analytics.calendar import calendar_multiplier
+from analytics.portfolio_stress import long_call_stress_test
 from analytics.pricing import compute_trade_metrics
 from analytics.risk_signals import evaluate_contract_risks, risk_penalty_multiplier
 from analytics.stock_profile import StockProfile
 from analytics.volatility import iv_rank, iv_hv_score
 from analytics.plain_rationale import generate_plain_english_rationale
 from analytics.technical import conviction_technical_multiplier, fractional_kelly_risk_pct
-from config import SCORE_WEIGHTS
+from config import EPR_LOSS_PCT, SCORE_WEIGHTS
 
 
 def _normalize(series: pd.Series) -> pd.Series:
@@ -63,6 +64,7 @@ def score_contracts(
     macro_multiplier: float = 1.0,
     div_yield: float = 0.0,
     earnings_dates: list | None = None,
+    bankroll: float = 10_000.0,
 ) -> pd.DataFrame:
     if not contracts:
         return pd.DataFrame()
@@ -97,6 +99,16 @@ def score_contracts(
             ask=ask,
             near_earnings=near_earn,
         )
+        stress = long_call_stress_test(
+            spot,
+            strike,
+            ask,
+            dte,
+            iv,
+            div_yield=div_yield,
+            epr_limit_pct=EPR_LOSS_PCT,
+            bankroll=bankroll,
+        )
 
         rows.append(
             {
@@ -116,6 +128,8 @@ def score_contracts(
                 "moneyness_pct": metrics.moneyness_pct,
                 "vega_dollars": metrics.vega_per_contract,
                 "rho": metrics.rho,
+                "vanna": metrics.vanna,
+                "charm": metrics.charm,
                 "sentiment": compound,
                 "risk_warnings": "|".join(flags.warning_messages),
                 "iv_crush_warning": flags.iv_crush_warning,
@@ -125,6 +139,10 @@ def score_contracts(
                 "max_loss_dollars": flags.max_loss_dollars,
                 "risk_penalty_mult": risk_penalty_multiplier(flags),
                 "calendar_note": cal_note,
+                "stress_max_loss": stress.max_loss_dollars,
+                "stress_passes_epr": stress.passes_epr,
+                "stress_worst_spot": stress.worst_spot_shock,
+                "stress_worst_vol": stress.worst_vol_shock,
             }
         )
 
@@ -182,6 +200,13 @@ def score_contracts(
         df.loc[weak_kelly, "conviction_score"] = (
             df.loc[weak_kelly, "display_confidence"] * 0.85
         ).clip(0, 100)
+
+    if "stress_passes_epr" in df.columns:
+        stress_fail = ~df["stress_passes_epr"].fillna(True).astype(bool)
+        if stress_fail.any():
+            df.loc[stress_fail, "conviction_score"] = (
+                df.loc[stress_fail, "conviction_score"] * 0.88
+            ).clip(0, 100)
 
     return df.sort_values("conviction_score", ascending=False).reset_index(drop=True)
 

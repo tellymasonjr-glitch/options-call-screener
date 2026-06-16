@@ -28,6 +28,8 @@ class TradeMetrics:
     moneyness_pct: float
     vega_per_contract: float
     rho: float
+    vanna: float
+    charm: float
 
 
 def bs_call_price(
@@ -127,4 +129,6 @@ def compute_trade_metrics(
         moneyness_pct=moneyness_pct,
         vega_per_contract=vega_per_contract,
         rho=greeks["rho"],
+        vanna=greeks["vanna"],
+        charm=greeks["charm"],
     )

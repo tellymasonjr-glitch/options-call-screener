@@ -20,7 +20,7 @@ from ui.results import render_header, render_results
 from ui.sidebar import render_sidebar
 from ui.sizing_sandbox import render_sizing_sandbox
 
-APP_VERSION = "3.7.0"
+APP_VERSION = "3.8.0"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(

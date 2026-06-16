@@ -72,6 +72,15 @@ CONVICTION_TIER3_MULT = 0.5
 KELLY_FRACTION = 0.25
 MAX_KELLY_RISK_PCT = 3.0
 
+# Portfolio stress grid (Module 2)
+STRESS_SPOT_SHOCKS = [-0.15, -0.10, -0.05, 0.0, 0.05, 0.10, 0.15]
+STRESS_VOL_SHOCKS = [-0.20, 0.0, 0.20]
+EPR_LOSS_PCT = 0.05
+
+# Monte Carlo sizing gate (Module 4)
+MC_SIMULATIONS = 1200
+MC_MAX_DRAWDOWN_PCT = 0.05
+
 SCORE_WEIGHTS = {
     "ev_hv": 0.24,          # BS fair value at blended HV minus premium
     "prob_itm": 0.14,       # N(d2)

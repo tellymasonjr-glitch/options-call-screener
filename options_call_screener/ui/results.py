@@ -539,6 +539,9 @@ def render_ticker_tab(result: TickerResult) -> None:
             )
         if t.momentum_accelerating:
             st.caption("Momentum is **accelerating** (5-day pace faster than 20-day trend).")
+        if result.wheel_note:
+            with st.expander("Wheel strategy check (income alternative)", expanded=False):
+                st.markdown(result.wheel_note)
 
     st.write(
         f"Longer-term scan: looked at **{result.contracts_scanned}** contracts; "
@@ -587,6 +590,25 @@ def render_ticker_tab(result: TickerResult) -> None:
         ev = top.get("ev")
         if ev is not None and not pd.isna(ev):
             st.caption(f"**Expected return (1 contract):** \\${float(ev):+,.0f} at expiry (model estimate).")
+        stress = top.get("stress_max_loss")
+        if stress is not None and not pd.isna(stress):
+            st.caption(
+                f"**Stress-test worst case:** \\${float(stress):+,.0f} "
+                f"(spot {float(top.get('stress_worst_spot', 0)):+.0%}, "
+                f"IV {float(top.get('stress_worst_vol', 0)):+.0%} shock)."
+            )
+        mc_loss = top.get("mc_p95_loss")
+        if mc_loss is not None and not pd.isna(mc_loss):
+            cap_ok = top.get("mc_passes_cap", True)
+            st.caption(
+                f"**Monte Carlo P95 loss:** \\${float(mc_loss):,.0f} "
+                f"({'passes' if cap_ok else 'exceeds'} 5% drawdown cap)."
+            )
+        if top.get("vanna") is not None and not pd.isna(top.get("vanna")):
+            st.caption(
+                f"**Vanna / Charm:** {float(top['vanna']):.4f} / {float(top.get('charm', 0)):.4f} "
+                "(second-order Greeks — Delta sensitivity to IV and time)."
+            )
         with st.expander("Why this idea? (plain English)", expanded=True):
             st.markdown(top.get("rationale", "No explanation available."))
 

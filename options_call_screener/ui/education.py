@@ -6,23 +6,16 @@ import streamlit as st
 
 
 def render_engine_guide() -> None:
-    with st.expander("How confidence is built (v3.7 math)", expanded=False):
+    with st.expander("How confidence is built (v3.8 math)", expanded=False):
         st.markdown(
             """
-**Automated in this app (Yahoo data only):**
-- **Black-Scholes-Merton** fair value with dividend yield, implied vol, and historical vol
-- **Greeks** — Delta, Gamma, Theta, Vega, Rho; warnings for IV crush, Vega overpay, and Gamma near expiry
-- **Breakout stack** — Bollinger %B, 20-day high + volume, 52-week high proximity, round-number levels
-- **OPEX calendar** — small seasonal tilt during options expiration week
-- **Quarter-Kelly sizing** — max **3%** of bankroll risk per idea (professional fractional Kelly)
-- **Spread friction** — penalizes wide bid/ask gaps that fake a “discount”
+**Modules active in this build:**
+1. **BSM engine** — dividend-adjusted pricing; Delta, Gamma, Theta, Vega, Rho, **Vanna**, **Charm**
+2. **Portfolio stress grid** — ±15% spot × ±20% IV shocks; flags trades breaching 5% EPR loss cap
+3. **IML monitor** — advisory kill switch in Risk Manager sandbox (no broker API)
+4. **Quarter-Kelly + Monte Carlo** — max 3% risk; P95 drawdown gate before sizing
+5. **Wheel advisory** — tells you when premium-selling may beat long calls (manual execution only)
 
-**Manual only (not in script — 30-second Google check):**
-- Wheel / covered-call income, collars, box spreads
-- Unusual options flow, dark pools, Fed headline trading
-- Broker margin tiers (Reg T vs portfolio margin)
-
-**Reality check:** Options cannot be “zero risk.” This tool ranks **defined-risk long calls**
-where the math, liquidity, and trend align — it does not predict exact price targets like $30 on HOOD.
+**Not automated:** live order routing, box spreads, portfolio margin at broker, unusual flow.
             """
         )

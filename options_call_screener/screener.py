@@ -16,14 +16,19 @@ from analytics.scalper import (
 )
 from analytics.scoring import build_rationale, score_contracts, tag_picks
 from analytics.macro import MacroEnvironment, build_macro_environment
+from analytics.monte_carlo import monte_carlo_long_call
 from analytics.position_sizing import apply_sizing_to_picks
 from analytics.stock_profile import StockProfile, build_stock_profile
+from analytics.wheel_advisory import evaluate_wheel_fit
 from analytics.volatility import collect_iv_samples, iv_rank as calc_iv_rank
 from config import (
     DELTA_BOUNDS,
     DELTA_BOUNDS_0DTE,
     CONVICTION_MIN_DTE,
+    DEFAULT_BANKROLL,
     DEFAULT_BASE_RISK_PCT,
+    MC_MAX_DRAWDOWN_PCT,
+    MC_SIMULATIONS,
     SCAN_TICKER_DELAY_SEC,
 )
 from data.cached_fetch import fetch_call_contracts, fetch_earnings, fetch_news, get_price_history
@@ -61,6 +66,39 @@ class TickerResult:
     contracts_passed: int = 0
     contracts_scanned_0dte: int = 0
     contracts_passed_0dte: int = 0
+    wheel_note: str = ""
+
+
+def _enrich_picks(
+    picks: pd.DataFrame,
+    history: pd.DataFrame,
+    spot: float,
+    profile: StockProfile,
+    bankroll: float,
+) -> pd.DataFrame:
+    if picks.empty:
+        return picks
+
+    rows = []
+    for _, row in picks.iterrows():
+        mc = monte_carlo_long_call(
+            history,
+            spot,
+            float(row["strike"]),
+            float(row["ask"]),
+            int(row["dte"]),
+            bankroll=bankroll,
+            max_drawdown_pct=MC_MAX_DRAWDOWN_PCT,
+            n_sims=MC_SIMULATIONS,
+        )
+        updated = row.to_dict()
+        updated["mc_p95_loss"] = mc.p95_loss_dollars
+        updated["mc_median_pnl"] = mc.median_pnl_dollars
+        updated["mc_prob_profit"] = mc.prob_profit
+        updated["mc_passes_cap"] = mc.passes_drawdown_cap
+        rows.append(updated)
+
+    return pd.DataFrame(rows)
 
 
 @dataclass
@@ -131,13 +169,25 @@ def scan_ticker(
             macro_multiplier=macro.macro_multiplier if macro else 1.0,
             div_yield=div_yield,
             earnings_dates=earn_dates,
+            bankroll=config.bankroll if config.bankroll > 0 else DEFAULT_BANKROLL,
         )
         if macro and macro.hard_block:
             picks = pd.DataFrame()
         else:
             picks = tag_picks(scored, config.max_budget, config.picks_per_ticker)
 
+        wheel_note = ""
+        if profile:
+            iv_med = float(scored["iv_rank"].median()) if not scored.empty else 0.0
+            wheel_note = evaluate_wheel_fit(
+                iv_rank=iv_med,
+                profile_score=profile.profile_score,
+                spot=spot,
+                hv_30=profile.hv_30,
+            ).summary
+
         if not picks.empty:
+            picks = _enrich_picks(picks, history, spot, profile, config.bankroll or DEFAULT_BANKROLL)
             picks["scan_mode"] = "conviction"
             picks["ticker"] = ticker
             if config.enable_position_sizing and config.bankroll > 0:
@@ -185,6 +235,7 @@ def scan_ticker(
             contracts_passed=len(filtered),
             contracts_scanned_0dte=scanned_0dte,
             contracts_passed_0dte=passed_0dte,
+            wheel_note=wheel_note,
         )
     except Exception as exc:
         return TickerResult(

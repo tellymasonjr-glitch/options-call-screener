@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from analytics.margin_monitor import compute_iml
 from analytics.position_sizing import calculate_position_size, conviction_tier_multiplier
 from config import (
     CONVICTION_TIER1_MIN,
@@ -96,3 +97,24 @@ def render_sizing_sandbox(*, expanded: bool = True) -> None:
             f"{CONVICTION_TIER3_MIN}–{CONVICTION_TIER2_MIN - 1} = {CONVICTION_TIER3_MULT}x (cautious) · "
             f"below {CONVICTION_TIER3_MIN} = skip"
         )
+
+        st.divider()
+        st.markdown("**Intraday Margin Level (IML) — advisory kill switch**")
+        open_risk = st.number_input(
+            "Premium already at risk ($)",
+            min_value=0.0,
+            max_value=float(bankroll),
+            value=0.0,
+            step=100.0,
+            key="sandbox_open_risk",
+            help="Total premium paid on open option positions (max loss on long calls).",
+        )
+        snap = compute_iml(bankroll, open_risk)
+        im1, im2, im3 = st.columns(3)
+        im1.metric("IML (equity cushion)", f"${snap.iml:,.0f}")
+        im2.metric("Maintenance req.", f"${snap.maintenance_required:,.0f}")
+        im3.metric("Kill switch", "ON" if snap.kill_switch else "OFF")
+        if snap.imd:
+            st.error(snap.message)
+        else:
+            st.caption(snap.message)

@@ -121,9 +121,14 @@ def apply_sizing_to_picks(picks, bankroll: float, base_risk_pct: float):
         updated["size_contracts"] = size.contracts
         updated["size_total_cost"] = size.total_cost
         updated["size_risk_pct"] = size.risk_pct_of_bankroll
-        updated["size_summary"] = size.summary
+        if updated.get("mc_passes_cap") is False and size.contracts > 0:
+            updated["size_contracts"] = max(0, size.contracts // 2)
+            updated["size_total_cost"] = updated["size_contracts"] * float(row["ask"]) * 100
+            updated["size_summary"] = (
+                f"{size.summary} Monte Carlo P95 loss exceeded cap — size cut 50%."
+            )
+        else:
+            updated["size_summary"] = size.summary
         rows.append(updated)
-
-    import pandas as pd
 
     return pd.DataFrame(rows)
