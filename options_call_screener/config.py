@@ -22,8 +22,13 @@ BENCHMARK_TICKERS = ["SPY", "QQQ", "IWM", "XLF"]
 # Large-cap comparison (expensive contracts; optional)
 LARGE_CAP_TICKERS = ["AAPL", "MSFT", "AMZN", "NVDA", "TSLA"]
 
+# Extra watchlist symbols (added on request)
+WATCHLIST_TICKERS = [
+    "KR",  # Kroger
+]
+
 TICKER_OPTIONS = sorted(
-    set(LOW_BUDGET_TICKERS + BENCHMARK_TICKERS + LARGE_CAP_TICKERS)
+    set(LOW_BUDGET_TICKERS + BENCHMARK_TICKERS + LARGE_CAP_TICKERS + WATCHLIST_TICKERS)
 )
 
 # Pre-selected on launch — first batch of 5 (reliable on Cloud; add more per scan)
