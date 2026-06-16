@@ -1,4 +1,4 @@
-"""Expected value and conviction scoring (Black-Scholes + stock behavior)."""
+"""Expected value and conviction scoring (Black-Scholes-Merton + risk filters)."""
 
 from __future__ import annotations
 
@@ -6,11 +6,13 @@ from typing import Any
 
 import pandas as pd
 
+from analytics.calendar import calendar_multiplier
 from analytics.pricing import compute_trade_metrics
+from analytics.risk_signals import evaluate_contract_risks, risk_penalty_multiplier
 from analytics.stock_profile import StockProfile
 from analytics.volatility import iv_rank, iv_hv_score
 from analytics.plain_rationale import generate_plain_english_rationale
-from analytics.technical import conviction_technical_multiplier, half_kelly_risk_pct
+from analytics.technical import conviction_technical_multiplier, fractional_kelly_risk_pct
 from config import SCORE_WEIGHTS
 
 
@@ -36,6 +38,19 @@ def _blended_hv(profile: StockProfile | None, fallback: float) -> float:
     return profile.hv_30 * 0.5 + profile.hv_60 * 0.3 + profile.hv_90 * 0.2
 
 
+def _contract_near_earnings(expiration: str, earnings_dates: list) -> bool:
+    if not earnings_dates:
+        return False
+    try:
+        exp = pd.to_datetime(expiration).date()
+    except Exception:
+        return False
+    for earn in earnings_dates:
+        if abs((exp - earn).days) <= 14:
+            return True
+    return False
+
+
 def score_contracts(
     contracts: list[dict[str, Any]],
     spot: float,
@@ -46,6 +61,8 @@ def score_contracts(
     profile: StockProfile | None = None,
     sma20: float | None = None,
     macro_multiplier: float = 1.0,
+    div_yield: float = 0.0,
+    earnings_dates: list | None = None,
 ) -> pd.DataFrame:
     if not contracts:
         return pd.DataFrame()
@@ -54,6 +71,8 @@ def score_contracts(
     compound = sentiment.get("mean_compound", 0.0)
     sentiment_score_base = max(0.0, min(100.0, (compound + 1) * 50))
     profile_score_base = profile.profile_score if profile else (70.0 if trend_up else 35.0)
+    cal_mult, cal_note = calendar_multiplier()
+    earnings_dates = earnings_dates or []
 
     rows = []
     for c in contracts:
@@ -62,9 +81,22 @@ def score_contracts(
         dte = int(c["dte"])
         strike = float(c["strike"])
         theta = float(c.get("theta", 0) or 0)
+        delta = float(c.get("delta", 0) or 0)
+        spread_pct = float(c.get("spread_pct", 0) or 0)
 
         rank = iv_rank(iv, iv_samples + [iv])
-        metrics = compute_trade_metrics(spot, strike, ask, dte, iv, hv, theta)
+        near_earn = _contract_near_earnings(str(c.get("expiration", "")), earnings_dates)
+        metrics = compute_trade_metrics(
+            spot, strike, ask, dte, iv, hv, theta, div_yield=div_yield
+        )
+        flags = evaluate_contract_risks(
+            iv_rank=rank,
+            dte=dte,
+            delta=delta,
+            spread_pct=spread_pct,
+            ask=ask,
+            near_earnings=near_earn,
+        )
 
         rows.append(
             {
@@ -82,7 +114,17 @@ def score_contracts(
                 "risk_reward": metrics.risk_reward,
                 "theta_pct_daily": metrics.theta_pct_daily,
                 "moneyness_pct": metrics.moneyness_pct,
+                "vega_dollars": metrics.vega_per_contract,
+                "rho": metrics.rho,
                 "sentiment": compound,
+                "risk_warnings": "|".join(flags.warning_messages),
+                "iv_crush_warning": flags.iv_crush_warning,
+                "vega_overpay_warning": flags.vega_overpay_warning,
+                "gamma_warning": flags.gamma_acceleration_warning,
+                "spread_friction": flags.spread_friction_dollars,
+                "max_loss_dollars": flags.max_loss_dollars,
+                "risk_penalty_mult": risk_penalty_multiplier(flags),
+                "calendar_note": cal_note,
             }
         )
 
@@ -112,17 +154,26 @@ def score_contracts(
         + df["theta_score"] * SCORE_WEIGHTS["theta"]
     )
 
-    multiplier = sentiment.get("multiplier", 1.0)
+    sentiment_mult = sentiment.get("multiplier", 1.0)
     tech_mult = (
         conviction_technical_multiplier(profile.tech) if profile is not None else 1.0
     )
     df["macro_multiplier"] = macro_multiplier
+    df["calendar_multiplier"] = cal_mult
     df["technical_multiplier"] = tech_mult
     df["half_kelly_pct"] = df.apply(
-        lambda r: half_kelly_risk_pct(float(r["prob_itm"]), float(r["risk_reward"])),
+        lambda r: fractional_kelly_risk_pct(float(r["prob_itm"]), float(r["risk_reward"])),
         axis=1,
     )
-    base = df["raw_conviction"] * multiplier * macro_multiplier * tech_mult
+
+    base = (
+        df["raw_conviction"]
+        * sentiment_mult
+        * macro_multiplier
+        * cal_mult
+        * tech_mult
+        * df["risk_penalty_mult"]
+    )
     df["display_confidence"] = base.clip(0, 100)
     df["kelly_edge_ok"] = df["half_kelly_pct"] > 0
     df["conviction_score"] = df["display_confidence"].copy()
@@ -131,6 +182,7 @@ def score_contracts(
         df.loc[weak_kelly, "conviction_score"] = (
             df.loc[weak_kelly, "display_confidence"] * 0.85
         ).clip(0, 100)
+
     return df.sort_values("conviction_score", ascending=False).reset_index(drop=True)
 
 
@@ -138,10 +190,11 @@ def tag_picks(df: pd.DataFrame, max_budget: float, picks: int) -> pd.DataFrame:
     if df.empty:
         return df
 
-    result = df.head(picks).copy()
+    ranked = df.sort_values("conviction_score", ascending=False)
+    result = ranked.head(picks).copy()
     result["tag"] = ["best_overall"] + [""] * (len(result) - 1)
 
-    value_candidates = df[df["ev"] > 0].sort_values("iv_rank")
+    value_candidates = ranked[ranked["ev"] > 0].sort_values("iv_rank")
     if not value_candidates.empty:
         best_value = value_candidates.iloc[0]
         if best_value.name not in result.index and len(result) < picks:
@@ -150,9 +203,7 @@ def tag_picks(df: pd.DataFrame, max_budget: float, picks: int) -> pd.DataFrame:
             result = pd.concat([result, row], ignore_index=True)
 
     budget_cap = max_budget * 0.7
-    budget_candidates = df[df["total_cost"] <= budget_cap].sort_values(
-        "conviction_score", ascending=False
-    )
+    budget_candidates = ranked[ranked["total_cost"] <= budget_cap]
     if not budget_candidates.empty:
         best_budget = budget_candidates.iloc[0]
         if best_budget.name not in result.index and len(result) < picks + 2:
@@ -168,7 +219,9 @@ def tag_picks(df: pd.DataFrame, max_budget: float, picks: int) -> pd.DataFrame:
         "display_confidence", "raw_conviction", "half_kelly_pct",
         "bs_fair_iv", "bs_fair_hv", "prob_itm", "edge_pct", "iv_hv_ratio",
         "breakeven", "expected_move", "payoff_1sigma", "risk_reward",
-        "theta_pct_daily", "moneyness_pct",
+        "theta_pct_daily", "moneyness_pct", "vega_dollars", "rho",
+        "spread_friction", "max_loss_dollars", "risk_penalty_mult",
+        "calendar_multiplier", "technical_multiplier", "macro_multiplier",
     ]
     clean_rows = []
     for _, row in result.iterrows():

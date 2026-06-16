@@ -520,6 +520,25 @@ def render_ticker_tab(result: TickerResult) -> None:
                 "**Mid-range drift** — price is chopping sideways (Bollinger %B 0.30–0.70). "
                 "Confidence score is penalized until a clearer breakout or reversal forms."
             )
+        t = p.tech
+        if t.breakout_confirmed:
+            st.success(
+                "**Breakout confirmed** — new 20-day high with volume ≥ 1.2× the 20-day average."
+            )
+        elif t.new_20d_high:
+            st.info("At/near a 20-day high — watch for volume confirmation before sizing up.")
+        if t.near_52w_high:
+            st.info(
+                f"**Near 52-week high** — only {t.pct_from_52w_high:.1%} below the high "
+                "(HOOD-at-$30 style breakout zone if trend holds)."
+            )
+        if t.pct_from_round <= 0.03:
+            st.info(
+                f"**Round-number zone** — within 3% of \\${t.nearest_round:g} "
+                "(psychological level traders watch)."
+            )
+        if t.momentum_accelerating:
+            st.caption("Momentum is **accelerating** (5-day pace faster than 20-day trend).")
 
     st.write(
         f"Longer-term scan: looked at **{result.contracts_scanned}** contracts; "
@@ -549,14 +568,25 @@ def render_ticker_tab(result: TickerResult) -> None:
             st.caption("Try: menu (⋮) → Clear cache, then hard refresh.")
 
         top = result.picks.iloc[0]
+        cal_note = top.get("calendar_note")
+        if cal_note and str(cal_note).strip():
+            st.caption(f"**Calendar context:** {cal_note}")
+        risk_warn = top.get("risk_warnings")
+        if risk_warn and str(risk_warn).strip():
+            for msg in str(risk_warn).split("|"):
+                if msg.strip():
+                    st.warning(msg.strip())
         if "size_summary" in top and top.get("size_summary"):
             st.info(f"**Recommended size:** {top['size_summary']}")
-        half_kelly = top.get("half_kelly_pct")
-        if half_kelly is not None and not pd.isna(half_kelly) and float(half_kelly) > 0:
+        kelly = top.get("half_kelly_pct")
+        if kelly is not None and not pd.isna(kelly) and float(kelly) > 0:
             st.caption(
-                f"**Half-Kelly max bankroll risk** on this contract: {float(half_kelly):.1f}% "
-                "(mathematical cap — sizing uses the lower of tier risk or Half-Kelly)."
+                f"**Quarter-Kelly max bankroll risk** on this contract: {float(kelly):.1f}% "
+                "(capped at 3% — sizing uses the lower of tier risk or Kelly)."
             )
+        ev = top.get("ev")
+        if ev is not None and not pd.isna(ev):
+            st.caption(f"**Expected return (1 contract):** \\${float(ev):+,.0f} at expiry (model estimate).")
         with st.expander("Why this idea? (plain English)", expanded=True):
             st.markdown(top.get("rationale", "No explanation available."))
 

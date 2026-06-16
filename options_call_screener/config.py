@@ -68,6 +68,10 @@ CONVICTION_TIER2_MULT = 1.0
 CONVICTION_TIER3_MIN = 50
 CONVICTION_TIER3_MULT = 0.5
 
+# Fractional Kelly — doc recommends quarter-Kelly with 1–3% per-trade cap
+KELLY_FRACTION = 0.25
+MAX_KELLY_RISK_PCT = 3.0
+
 SCORE_WEIGHTS = {
     "ev_hv": 0.24,          # BS fair value at blended HV minus premium
     "prob_itm": 0.14,       # N(d2)

@@ -28,6 +28,7 @@ from config import (
 )
 from data.cached_fetch import fetch_call_contracts, fetch_earnings, fetch_news, get_price_history
 from data.earnings import expiration_near_earnings, upcoming_earnings_dates
+from data.fundamentals import fetch_dividend_yield
 from data.news_data import analyze_sentiment
 
 
@@ -86,8 +87,9 @@ def scan_ticker(
         articles = fetch_news(ticker)
         sentiment = analyze_sentiment(ticker, articles)
 
-        earnings = fetch_earnings(ticker) if config.avoid_earnings else []
-        earn_dates = upcoming_earnings_dates(ticker, earnings) if config.avoid_earnings else []
+        earnings = fetch_earnings(ticker)
+        earn_dates = upcoming_earnings_dates(ticker, earnings)
+        div_yield = fetch_dividend_yield(ticker)
 
         include_0dte = config.min_dte == 0
         conviction_min = CONVICTION_MIN_DTE if include_0dte else max(config.min_dte, 1)
@@ -127,6 +129,8 @@ def scan_ticker(
             iv_samples,
             profile=profile,
             macro_multiplier=macro.macro_multiplier if macro else 1.0,
+            div_yield=div_yield,
+            earnings_dates=earn_dates,
         )
         if macro and macro.hard_block:
             picks = pd.DataFrame()

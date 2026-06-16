@@ -14,12 +14,13 @@ import streamlit as st
 from data.yf_utils import is_rate_limit_error
 from screener import run_scan
 from ui.auth import check_pin
+from ui.education import render_engine_guide
 from ui.exit_checker import render_exit_checker
 from ui.results import render_header, render_results
 from ui.sidebar import render_sidebar
 from ui.sizing_sandbox import render_sizing_sandbox
 
-APP_VERSION = "3.6.3"
+APP_VERSION = "3.7.0"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(
@@ -34,6 +35,7 @@ def main() -> None:
         st.stop()
 
     render_header(app_version=APP_VERSION, app_root=APP_ROOT)
+    render_engine_guide()
     render_sizing_sandbox(expanded=True)
     render_exit_checker(expanded=False)
 
