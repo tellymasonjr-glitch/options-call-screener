@@ -2,37 +2,12 @@
 
 DATA_SOURCE = "Yahoo Finance (yfinance) — v2.4"
 
-# Low-budget paper-trade universe: ~$5–30 stocks, liquid options (tight spreads for yfinance)
-LOW_BUDGET_TICKERS = [
-    "F",
-    "SOFI",
-    "AAL",
-    "CCL",
-    "SNAP",
-    "INTC",
-    "HOOD",
-    "PFE",
-    "MARA",
-    "WBD",
-]
-
-# Index / sector ETFs — macro context (higher premiums, use for weather checks)
-BENCHMARK_TICKERS = ["SPY", "QQQ", "IWM", "XLF"]
-
-# Large-cap comparison (expensive contracts; optional)
-LARGE_CAP_TICKERS = ["AAPL", "MSFT", "AMZN", "NVDA", "TSLA"]
-
-# Extra watchlist symbols (added on request)
-WATCHLIST_TICKERS = [
-    "KR",  # Kroger
-]
-
-TICKER_OPTIONS = sorted(
-    set(LOW_BUDGET_TICKERS + BENCHMARK_TICKERS + LARGE_CAP_TICKERS + WATCHLIST_TICKERS)
+from ticker_registry import (  # noqa: E402
+    DEFAULT_TICKERS,
+    LOW_BUDGET_TICKERS,
+    TICKER_OPTIONS,
+    ticker_label,
 )
-
-# Pre-selected on launch — first batch of 5 (reliable on Cloud; add more per scan)
-DEFAULT_TICKERS = LOW_BUDGET_TICKERS[:5]
 
 MIN_BUDGET = 50
 DEFAULT_BUDGET = 500
@@ -42,7 +17,7 @@ DEFAULT_MIN_DTE = 14
 DEFAULT_MAX_DTE = 45
 MIN_DTE_LIMIT = 0  # 0 = include same-day (0DTE) scalper picks
 CONVICTION_MIN_DTE = 7  # conviction scoring floor when 0 is selected on slider
-MAX_DTE_LIMIT = 60
+MAX_DTE_LIMIT = 90
 
 # 0 DTE scalper mode — separate from conviction pipeline
 MIN_OPEN_INTEREST_0DTE = 20

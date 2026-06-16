@@ -13,7 +13,6 @@ from config import (
     DEFAULT_MIN_DTE,
     DEFAULT_PICKS_PER_TICKER,
     DEFAULT_TICKERS,
-    LOW_BUDGET_TICKERS,
     MAX_BANKROLL,
     MAX_BUDGET,
     MAX_DTE_LIMIT,
@@ -25,6 +24,7 @@ from config import (
     MIN_DTE_LIMIT,
     SCAN_WARN_TICKERS,
     TICKER_OPTIONS,
+    ticker_label,
 )
 from screener import ScanConfig
 from ui.copy import (
@@ -56,11 +56,11 @@ def render_sidebar() -> ScanConfig | None:
         "Companies to Scan",
         options=TICKER_OPTIONS,
         default=DEFAULT_TICKERS,
+        format_func=ticker_label,
         help=HELP_TICKERS,
     )
     st.sidebar.caption(
-        f"**Default batch (5):** {', '.join(DEFAULT_TICKERS)} · "
-        f"**Full preset:** {', '.join(LOW_BUDGET_TICKERS)}. "
+        f"**Sorted best → riskiest.** Default batch (5): {', '.join(DEFAULT_TICKERS)}. "
         "Scan 5 at a time on Cloud, then add the next batch."
     )
     custom = st.sidebar.text_input(

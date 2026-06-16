@@ -10,6 +10,7 @@ from analytics.pricing import compute_trade_metrics
 from analytics.stock_profile import StockProfile
 from analytics.volatility import iv_rank, iv_hv_score
 from analytics.plain_rationale import generate_plain_english_rationale
+from analytics.technical import conviction_technical_multiplier, half_kelly_risk_pct
 from config import SCORE_WEIGHTS
 
 
@@ -112,10 +113,19 @@ def score_contracts(
     )
 
     multiplier = sentiment.get("multiplier", 1.0)
+    tech_mult = (
+        conviction_technical_multiplier(profile.tech) if profile is not None else 1.0
+    )
     df["macro_multiplier"] = macro_multiplier
+    df["technical_multiplier"] = tech_mult
+    df["half_kelly_pct"] = df.apply(
+        lambda r: half_kelly_risk_pct(float(r["prob_itm"]), float(r["risk_reward"])),
+        axis=1,
+    )
     df["conviction_score"] = (
-        df["raw_conviction"] * multiplier * macro_multiplier
+        df["raw_conviction"] * multiplier * macro_multiplier * tech_mult
     ).clip(0, 100)
+    df.loc[df["half_kelly_pct"] <= 0, "conviction_score"] = 0.0
     return df.sort_values("conviction_score", ascending=False).reset_index(drop=True)
 
 

@@ -40,6 +40,7 @@ def calculate_position_size(
     base_risk_pct: float,
     conviction_score: float,
     ask: float,
+    max_risk_pct: float | None = None,
 ) -> PositionSize:
     tier, tier_mult = conviction_tier_multiplier(conviction_score)
     cost_per_contract = ask * 100
@@ -56,7 +57,10 @@ def calculate_position_size(
         )
 
     risk_budget = bankroll * (base_risk_pct / 100.0) * tier_mult
-    risk_pct = (base_risk_pct * tier_mult)
+    risk_pct = base_risk_pct * tier_mult
+    if max_risk_pct is not None and max_risk_pct > 0:
+        risk_pct = min(risk_pct, max_risk_pct)
+        risk_budget = bankroll * (risk_pct / 100.0)
     contracts = int(risk_budget // cost_per_contract)
     total_cost = contracts * cost_per_contract
 
@@ -91,11 +95,18 @@ def apply_sizing_to_picks(picks, bankroll: float, base_risk_pct: float):
 
     rows = []
     for _, row in picks.iterrows():
+        hk = row.get("half_kelly_pct")
+        max_risk = (
+            float(hk)
+            if hk is not None and hk == hk and float(hk) > 0  # NaN-safe
+            else None
+        )
         size = calculate_position_size(
             bankroll,
             base_risk_pct,
             float(row["conviction_score"]),
             float(row["ask"]),
+            max_risk_pct=max_risk,
         )
         updated = row.to_dict()
         updated["size_tier"] = size.tier

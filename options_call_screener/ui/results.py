@@ -429,8 +429,23 @@ def render_ticker_tab(result: TickerResult) -> None:
             f"**Drop from recent high:** {p.drawdown_from_high:.1%} · "
             f"**Recent change (20d / 60d):** {p.roc_20:+.1%} / {p.roc_60:+.1%} · "
             f"**Momentum:** {'Buyers winning' if p.macd_bullish else 'Sellers winning'} · "
-            f"**Volume vs average:** {p.volume_ratio:.1f}x"
+            f"**Volume vs average:** {p.volume_ratio:.1f}x · "
+            f"**Bollinger %B:** {p.tech.pct_b:.2f}"
         )
+        st.caption(
+            f"**Suggested hard stop-loss (2× ATR):** \\${p.tech.atr_stop_2x:.2f} "
+            f"(14-day ATR \\${p.tech.atr_14:.2f})"
+        )
+        if p.tech.low_volume_breakout:
+            st.warning(
+                "**Low Volume Breakout Warning** — price is pushing up but today's volume "
+                "is below the 20-day average. Breakout may be a trap."
+            )
+        if p.tech.midrange_chop:
+            st.warning(
+                "**Mid-range drift** — price is chopping sideways (Bollinger %B 0.30–0.70). "
+                "Confidence score is penalized until a clearer breakout or reversal forms."
+            )
 
     st.write(
         f"Longer-term scan: looked at **{result.contracts_scanned}** contracts; "
@@ -462,6 +477,12 @@ def render_ticker_tab(result: TickerResult) -> None:
         top = result.picks.iloc[0]
         if "size_summary" in top and top.get("size_summary"):
             st.info(f"**Recommended size:** {top['size_summary']}")
+        half_kelly = top.get("half_kelly_pct")
+        if half_kelly is not None and not pd.isna(half_kelly) and float(half_kelly) > 0:
+            st.caption(
+                f"**Half-Kelly max bankroll risk** on this contract: {float(half_kelly):.1f}% "
+                "(mathematical cap — sizing uses the lower of tier risk or Half-Kelly)."
+            )
         with st.expander("Why this idea? (plain English)", expanded=True):
             st.markdown(top.get("rationale", "No explanation available."))
 

@@ -8,6 +8,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from analytics.technical import TechnicalSignals, compute_technical_signals
+
 
 @dataclass(frozen=True)
 class StockProfile:
@@ -55,6 +57,9 @@ class StockProfile:
     relative_strength_score: float
     volume_score: float
     profile_score: float
+
+    # Bollinger / ATR / volume (local OHLCV math)
+    tech: TechnicalSignals
 
 
 def _annualized_hv(closes: pd.Series, days: int) -> float:
@@ -253,6 +258,8 @@ def build_stock_profile(
         + volume_score * 0.15
     )
 
+    tech = compute_technical_signals(history)
+
     return StockProfile(
         ticker=ticker,
         spot=spot,
@@ -284,4 +291,5 @@ def build_stock_profile(
         relative_strength_score=rs_score,
         volume_score=volume_score,
         profile_score=profile_score,
+        tech=tech,
     )
