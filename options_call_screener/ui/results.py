@@ -147,11 +147,37 @@ def _total_cost_dollars(row: pd.Series) -> float:
     return float(row.get("ask", 0) or 0) * 100
 
 
+def _expected_return_per_contract(row: pd.Series) -> float | None:
+    ev = row.get("ev")
+    if ev is None or pd.isna(ev):
+        return None
+    return float(ev)
+
+
+def _format_expected_return(row: pd.Series) -> str | None:
+    """Dollar expected return from BS/HV model (per contract, scaled if sized)."""
+    ev_per = _expected_return_per_contract(row)
+    if ev_per is None:
+        return None
+    contracts = int(row.get("size_contracts", 0) or 0)
+    if contracts >= 1:
+        total = ev_per * contracts
+        return (
+            f"Expected Return: \\${ev_per:+,.0f}/contract "
+            f"(\\${total:+,.0f} at {contracts} contract{'s' if contracts != 1 else ''})"
+        )
+    return f"Expected Return: \\${ev_per:+,.0f}/contract"
+
+
 def _pick_confidence(row: pd.Series) -> float | None:
-    for key in ("conviction_score", "scalper_score"):
+    for key in ("display_confidence", "conviction_score", "raw_conviction", "scalper_score"):
         val = row.get(key)
-        if val is not None and not pd.isna(val):
+        if val is None or (isinstance(val, float) and pd.isna(val)):
+            continue
+        try:
             return float(val)
+        except (TypeError, ValueError):
+            continue
     return None
 
 
@@ -169,6 +195,9 @@ def _format_pick_line(row: pd.Series, *, suffix: str = "", numbered: bool = True
     )
     if score is not None:
         line += f" · confidence {score:.0f}/100"
+    ev_line = _format_expected_return(row)
+    if ev_line:
+        line += f" · {ev_line}"
     line += f" · Total Cost: \\${cost:,.0f}"
     return line
 
@@ -176,13 +205,48 @@ def _format_pick_line(row: pd.Series, *, suffix: str = "", numbered: bool = True
 def render_simple_pick_list(ranked: pd.DataFrame, *, title: str, suffix: str = "") -> None:
     """Simple numbered list for quick logging."""
     st.subheader(title)
+    st.caption(
+        "**Expected Return** is the model's average profit or loss in dollars per contract "
+        "(positive = math says the premium is cheap vs. normal stock swings; negative = overpriced)."
+    )
 
     if ranked.empty:
         st.caption("Nothing matched your filters in this mode.")
         return
 
-    for _, row in ranked.iterrows():
+    loggable = ranked.copy()
+    if "conviction_score" in loggable.columns:
+        loggable = loggable.sort_values(
+            ["conviction_score", "ev"] if "ev" in loggable.columns else ["conviction_score"],
+            ascending=[False, False] if "ev" in loggable.columns else [False],
+        ).reset_index(drop=True)
+        loggable = loggable.drop(columns=["rank"], errors="ignore")
+        loggable.insert(0, "rank", range(1, len(loggable) + 1))
+
+    shown = 0
+    for _, row in loggable.iterrows():
+        score = _pick_confidence(row)
+        if score is not None and score < 1:
+            continue
         st.markdown(_format_pick_line(row, suffix=suffix))
+        shown += 1
+
+    if shown == 0 and not loggable.empty:
+        st.info("No high-confidence ideas in this batch — widen filters or try another ticker group.")
+
+    if "kelly_edge_ok" in ranked.columns and "conviction_score" in ranked.columns:
+        demoted = ranked[
+            (~ranked["kelly_edge_ok"]) & (ranked["conviction_score"] >= 1)
+        ].sort_values("conviction_score", ascending=False)
+        if not demoted.empty:
+            with st.expander("Lower-edge ideas (Half-Kelly caution — size small or skip)", expanded=False):
+                st.caption(
+                    "These still show a confidence score, but Kelly sizing suggests minimal or no bankroll risk."
+                )
+                for i, (_, row) in enumerate(demoted.head(8).iterrows(), start=1):
+                    row = row.copy()
+                    row["rank"] = i
+                    st.markdown(_format_pick_line(row, suffix=suffix))
 
 
 def render_bottom_results(
@@ -380,6 +444,8 @@ def _render_pick_table(
         display["edge_pct"] = display["edge_pct"].map(lambda x: f"{x:+.1%}")
     if "spread_pct" in display.columns:
         display["spread_pct"] = display["spread_pct"].map(lambda x: f"{x:.1%}")
+    if "ev" in display.columns:
+        display["ev"] = display["ev"].map(lambda x: f"${float(x:+,.0f}" if pd.notna(x) else "—")
 
     visible = [c for c in cols if c in display.columns]
     cfg = column_config or {}

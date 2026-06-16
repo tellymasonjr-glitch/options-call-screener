@@ -122,10 +122,15 @@ def score_contracts(
         lambda r: half_kelly_risk_pct(float(r["prob_itm"]), float(r["risk_reward"])),
         axis=1,
     )
-    df["conviction_score"] = (
-        df["raw_conviction"] * multiplier * macro_multiplier * tech_mult
-    ).clip(0, 100)
-    df.loc[df["half_kelly_pct"] <= 0, "conviction_score"] = 0.0
+    base = df["raw_conviction"] * multiplier * macro_multiplier * tech_mult
+    df["display_confidence"] = base.clip(0, 100)
+    df["kelly_edge_ok"] = df["half_kelly_pct"] > 0
+    df["conviction_score"] = df["display_confidence"].copy()
+    weak_kelly = ~df["kelly_edge_ok"]
+    if weak_kelly.any():
+        df.loc[weak_kelly, "conviction_score"] = (
+            df.loc[weak_kelly, "display_confidence"] * 0.85
+        ).clip(0, 100)
     return df.sort_values("conviction_score", ascending=False).reset_index(drop=True)
 
 
@@ -160,6 +165,7 @@ def tag_picks(df: pd.DataFrame, max_budget: float, picks: int) -> pd.DataFrame:
     numeric_cols = [
         "strike", "ask", "total_cost", "dte", "delta", "theta", "iv", "iv_rank",
         "open_interest", "volume", "spread_pct", "ev", "conviction_score",
+        "display_confidence", "raw_conviction", "half_kelly_pct",
         "bs_fair_iv", "bs_fair_hv", "prob_itm", "edge_pct", "iv_hv_ratio",
         "breakeven", "expected_move", "payoff_1sigma", "risk_reward",
         "theta_pct_daily", "moneyness_pct",
@@ -169,7 +175,10 @@ def tag_picks(df: pd.DataFrame, max_budget: float, picks: int) -> pd.DataFrame:
         clean = row.to_dict()
         for col in numeric_cols:
             if col in clean:
-                clean[col] = float(pd.to_numeric(clean[col], errors="coerce") or 0)
+                val = pd.to_numeric(clean[col], errors="coerce")
+                if pd.isna(val):
+                    continue
+                clean[col] = float(val)
         clean_rows.append(clean)
 
     return pd.DataFrame(clean_rows)

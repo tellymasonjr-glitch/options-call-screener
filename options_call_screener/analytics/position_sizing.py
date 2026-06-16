@@ -93,6 +93,8 @@ def apply_sizing_to_picks(picks, bankroll: float, base_risk_pct: float):
     if picks.empty or bankroll <= 0:
         return picks
 
+    import pandas as pd
+
     rows = []
     for _, row in picks.iterrows():
         hk = row.get("half_kelly_pct")
@@ -101,10 +103,16 @@ def apply_sizing_to_picks(picks, bankroll: float, base_risk_pct: float):
             if hk is not None and hk == hk and float(hk) > 0  # NaN-safe
             else None
         )
+        score_val = None
+        for key in ("display_confidence", "conviction_score"):
+            val = row.get(key)
+            if val is not None and not pd.isna(val):
+                score_val = float(val)
+                break
         size = calculate_position_size(
             bankroll,
             base_risk_pct,
-            float(row["conviction_score"]),
+            score_val or 0.0,
             float(row["ask"]),
             max_risk_pct=max_risk,
         )

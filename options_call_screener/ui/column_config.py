@@ -60,9 +60,12 @@ CONVICTION_COLUMN_CONFIG = {
         help="Where today's option prices sit vs. the last year (0 = cheap, 100 = expensive).",
     ),
     "ev": st.column_config.NumberColumn(
-        "Expected Value",
-        format="$%.2f",
-        help="Average profit/loss the math model expects from this contract.",
+        "Expected Return ($)",
+        format="$%.0f",
+        help=(
+            "Average profit or loss in dollars for one contract at expiry, from the pricing model. "
+            "Positive = you are buying below fair value; negative = overpaying vs. normal volatility."
+        ),
     ),
     "risk_reward": st.column_config.NumberColumn(
         "Reward vs Risk",
