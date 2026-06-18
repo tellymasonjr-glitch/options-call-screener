@@ -65,6 +65,9 @@ SMA200_KELLY_MULT = 0.75
 ACCOUNT_RISK_LOCK_PCT = 0.10
 JOURNAL_FILENAME = "my_trades.csv"
 
+# Mirror Check — beta-weighted SPY exposure warning
+SPY_EXPOSURE_WARN_SHARES = 100
+
 # Macro environment (VIX + SPY trend) — conviction scoring only
 VIX_CALM_MAX = 18
 VIX_ELEVATED_MAX = 25

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from config import MIN_OPEN_INTEREST, MIN_VOLUME
+
 
 @dataclass(frozen=True)
 class ContractRiskFlags:
@@ -23,6 +25,8 @@ def evaluate_contract_risks(
     spread_pct: float,
     ask: float,
     near_earnings: bool,
+    open_interest: int = 0,
+    volume: int = 0,
 ) -> ContractRiskFlags:
     """Retail-trap detectors aligned with long-call premium buying."""
     warnings: list[str] = []
@@ -58,7 +62,12 @@ def evaluate_contract_risks(
         )
 
     spread_friction = (spread_pct * ask * 100) / 2.0 if spread_pct > 0 else 0.0
-    if spread_pct >= 0.10:
+    if open_interest < MIN_OPEN_INTEREST or volume < MIN_VOLUME:
+        warnings.append(
+            f"Empty Room — OI {open_interest} / volume {volume}. "
+            "Nobody is trading this strike; confidence is zero regardless of BSM math."
+        )
+    elif spread_pct >= 0.10:
         warnings.append(
             f"Ghost Tax — spread is {spread_pct:.0%} of mid price (~${spread_friction:.0f} slippage per round trip). "
             "Confidence is cut in half above 10% spread."

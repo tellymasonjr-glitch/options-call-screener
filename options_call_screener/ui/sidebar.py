@@ -27,6 +27,7 @@ from config import (
     ticker_label,
 )
 from screener import ScanConfig
+from ui.trade_journal import render_mirror_check
 from ui.copy import (
     HELP_BANKROLL,
     HELP_BASE_RISK,
@@ -148,6 +149,8 @@ def render_sidebar() -> ScanConfig | None:
     if st.sidebar.button("Clear cache & reload", help="Fix stale data or after an app update."):
         st.cache_data.clear()
         st.rerun()
+
+    render_mirror_check(in_sidebar=True)
 
     analyze = st.sidebar.button("Scan for Trading Ideas", type="primary")
 

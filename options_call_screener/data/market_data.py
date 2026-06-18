@@ -184,4 +184,7 @@ def get_call_quote(ticker: str, strike: float, expiration: str) -> dict[str, flo
         ask = last
     if bid <= 0 and ask > 0:
         bid = ask * 0.98
-    return {"ask": ask, "bid": bid, "last": last}
+    iv = _to_float(row.get("impliedVolatility"))
+    if iv <= 0:
+        iv = 0.30
+    return {"ask": ask, "bid": bid, "last": last, "iv": iv}

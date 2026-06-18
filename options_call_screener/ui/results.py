@@ -236,6 +236,9 @@ def render_simple_pick_list(
         loggable.insert(0, "rank", range(1, len(loggable) + 1))
 
     spots = {r.ticker: r.spot for r in (results or [])}
+    betas = {
+        r.ticker: (r.profile.beta_60 if r.profile else 1.0) for r in (results or [])
+    }
 
     shown = 0
     for _, row in loggable.iterrows():
@@ -249,6 +252,7 @@ def render_simple_pick_list(
             row,
             spot,
             sector=str(row.get("sector", "")),
+            beta=betas.get(ticker, float(row.get("beta") or 1.0)),
             button_key=f"paper_exec_{ticker}_{row.get('strike')}_{row.get('expiration')}_{shown}",
             locked=execution_locked,
         )
@@ -663,10 +667,12 @@ def render_ticker_tab(result: TickerResult) -> None:
             st.caption(f"Payoff chart unavailable: {exc}")
 
         locked = st.session_state.get("execution_locked", False)
+        beta = result.profile.beta_60 if result.profile else 1.0
         render_execute_button(
             top,
             result.spot,
             sector=result.sector or str(top.get("sector", "")),
+            beta=beta,
             button_key=f"paper_top_{result.ticker}",
             locked=locked,
         )

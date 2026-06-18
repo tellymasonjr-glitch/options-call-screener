@@ -17,6 +17,8 @@ from analytics.technical import conviction_technical_multiplier, fractional_kell
 from config import (
     EPR_LOSS_PCT,
     HIGH_SPREAD_WARNING_PCT,
+    MIN_OPEN_INTEREST,
+    MIN_VOLUME,
     SCORE_WEIGHTS,
     SMA200_CONFIDENCE_MULT,
     SMA200_KELLY_MULT,
@@ -102,6 +104,9 @@ def score_contracts(
         theta = float(c.get("theta", 0) or 0)
         delta = float(c.get("delta", 0) or 0)
         spread_pct = float(c.get("spread_pct", 0) or 0)
+        oi = int(c.get("open_interest", 0) or 0)
+        vol = int(c.get("volume", 0) or 0)
+        empty_room = oi < MIN_OPEN_INTEREST or vol < MIN_VOLUME
 
         rank = iv_rank(iv, iv_samples + [iv])
         near_earn = _contract_near_earnings(str(c.get("expiration", "")), earnings_dates)
@@ -116,6 +121,8 @@ def score_contracts(
             spread_pct=spread_pct,
             ask=ask,
             near_earnings=near_earn,
+            open_interest=oi,
+            volume=vol,
         )
         stress = long_call_stress_test(
             spot,
@@ -162,6 +169,7 @@ def score_contracts(
                 "stress_worst_spot": stress.worst_spot_shock,
                 "stress_worst_vol": stress.worst_vol_shock,
                 "earnings_nogo": earn_nogo,
+                "empty_room": empty_room,
             }
         )
 
@@ -227,6 +235,11 @@ def score_contracts(
         nogo = df["earnings_nogo"].fillna(False).astype(bool)
         df.loc[nogo, "display_confidence"] = 0.0
         df.loc[nogo, "conviction_score"] = 0.0
+
+    if "empty_room" in df.columns:
+        ghost = df["empty_room"].fillna(False).astype(bool)
+        df.loc[ghost, "display_confidence"] = 0.0
+        df.loc[ghost, "conviction_score"] = 0.0
 
     df["kelly_edge_ok"] = df["half_kelly_pct"] > 0
     weak_kelly = ~df["kelly_edge_ok"]
