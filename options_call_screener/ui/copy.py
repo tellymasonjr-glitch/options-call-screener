@@ -229,6 +229,17 @@ WHY_QUICK_LIST_EV = (
     "Why it matters: confidence tells you quality; expected return tells you magnitude — "
     "a 90-score on a $5 contract beats a 95-score that only pays $0.50."
 )
+SCAN_SUMMARY_TITLE = "Scan Summary — All Tickers"
+SCAN_SUMMARY_INTRO = (
+    "Why we show this: one sortable table replaces squished metric columns. "
+    "Click any column header to rank by confidence, momentum, or news tone — "
+    "then pick one ticker below for the full deep dive."
+)
+DEEP_DIVE_TITLE = "Deep Dive — One Ticker at a Time"
+DEEP_DIVE_INTRO = (
+    "Why one at a time: scanning 30 tabs at once encourages machine-gunner overtrading. "
+    "Select a single symbol and use the full screen width for Health Check, Payoff X-Ray, and ideas."
+)
 WHY_SCALPER = (
     "Same-day contracts scored on volume and movement, not long-term confidence. "
     "Why it matters: 0DTE is a different game — Theta burns fast and spreads hurt more; "

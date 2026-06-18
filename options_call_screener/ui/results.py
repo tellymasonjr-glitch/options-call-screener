@@ -42,6 +42,10 @@ from ui.copy import (
     WHY_SCATTER,
     WHY_STRESS,
     WHY_VANNA,
+    SCAN_SUMMARY_INTRO,
+    SCAN_SUMMARY_TITLE,
+    DEEP_DIVE_INTRO,
+    DEEP_DIVE_TITLE,
 )
 
 _TAG_LABELS = {
@@ -293,7 +297,7 @@ def render_bottom_results(
     results: list[TickerResult] | None = None,
     execution_locked: bool = False,
 ) -> None:
-    """Download + simple lists — always at the bottom after ticker tabs."""
+    """Download + simple lists — always at the bottom after the deep dive."""
     st.divider()
     st.subheader("Today's Best Ideas")
 
@@ -399,20 +403,127 @@ def render_macro_environment(macro: MacroEnvironment) -> None:
     st.caption(HELP_MACRO_DETAIL)
 
 
+def _best_confidence(result: TickerResult) -> float:
+    if result.error or result.picks.empty:
+        return -1.0
+    return float(result.picks.iloc[0].get("conviction_score", 0) or 0)
+
+
+def _sorted_results(results: list[TickerResult]) -> list[TickerResult]:
+    """Highest top-pick confidence first; errors and empty scans sink to the bottom."""
+    return sorted(results, key=lambda r: (-_best_confidence(r), r.ticker))
+
+
+def _build_scan_summary_df(results: list[TickerResult]) -> pd.DataFrame:
+    """Fund Manager view — one row per ticker, sortable in st.dataframe."""
+    rows: list[dict] = []
+    for r in results:
+        if r.error:
+            rows.append(
+                {
+                    "Ticker": r.ticker,
+                    "Status": "Error",
+                    "Price": None,
+                    "News tone": None,
+                    "Sector": r.sector or "—",
+                    "Top confidence": None,
+                    "Expected return ($)": None,
+                    "Trend score": None,
+                    "RSI": None,
+                    "Beta": None,
+                    "Ideas found": 0,
+                    "Contracts passed": 0,
+                }
+            )
+            continue
+
+        top_conf: float | None = None
+        top_ev: float | None = None
+        if not r.picks.empty:
+            top = r.picks.iloc[0]
+            top_conf = float(top.get("conviction_score", 0) or 0)
+            ev_raw = top.get("ev")
+            if ev_raw is not None and not pd.isna(ev_raw):
+                top_ev = float(ev_raw)
+
+        p = r.profile
+        rows.append(
+            {
+                "Ticker": r.ticker,
+                "Status": "OK",
+                "Price": round(r.spot, 2),
+                "News tone": round(float(r.sentiment.get("mean_compound", 0)), 2),
+                "Sector": r.sector or "—",
+                "Top confidence": top_conf,
+                "Expected return ($)": top_ev,
+                "Trend score": round(p.profile_score, 0) if p else None,
+                "RSI": round(p.rsi_14, 0) if p else None,
+                "Beta": round(p.beta_60, 2) if p else None,
+                "Ideas found": len(r.picks),
+                "Contracts passed": r.contracts_passed,
+            }
+        )
+
+    df = pd.DataFrame(rows)
+    if not df.empty and "Top confidence" in df.columns:
+        df = df.sort_values(
+            ["Top confidence", "Ticker"],
+            ascending=[False, True],
+            na_position="last",
+        ).reset_index(drop=True)
+    return df
+
+
+def render_scan_summary_table(results: list[TickerResult]) -> None:
+    """Replace squished st.columns metrics with a single sortable table."""
+    st.subheader(SCAN_SUMMARY_TITLE)
+    st.caption(SCAN_SUMMARY_INTRO)
+
+    summary = _build_scan_summary_df(results)
+    if summary.empty:
+        st.info("No scan results to summarize.")
+        return
+
+    st.dataframe(
+        summary,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Ticker": st.column_config.TextColumn("Ticker", help=HELP_TICKER_SPOT),
+            "Status": st.column_config.TextColumn("Status"),
+            "Price": st.column_config.NumberColumn("Price ($)", format="$%.2f"),
+            "News tone": st.column_config.NumberColumn(
+                "News tone",
+                help="Headline sentiment: -1 negative to +1 positive.",
+                format="%.2f",
+            ),
+            "Sector": st.column_config.TextColumn("Sector"),
+            "Top confidence": st.column_config.NumberColumn(
+                "Top confidence",
+                help=HELP_CONVICTION,
+                format="%.0f",
+            ),
+            "Expected return ($)": st.column_config.NumberColumn(
+                "Expected return ($)",
+                help=WHY_EV,
+                format="$%+.0f",
+            ),
+            "Trend score": st.column_config.NumberColumn(
+                "Trend score",
+                help=HELP_TREND_SCORE,
+                format="%.0f",
+            ),
+            "RSI": st.column_config.NumberColumn("RSI", help=HELP_RSI, format="%.0f"),
+            "Beta": st.column_config.NumberColumn("Beta", help=HELP_BETA, format="%.2f"),
+            "Ideas found": st.column_config.NumberColumn("Ideas found"),
+            "Contracts passed": st.column_config.NumberColumn("Contracts passed"),
+        },
+    )
+
+
 def render_summary(results: list[TickerResult]) -> None:
-    cols = st.columns(len(results))
-    for col, result in zip(cols, results):
-        with col:
-            if result.error:
-                st.metric(result.ticker, "Error")
-            else:
-                sent = result.sentiment.get("mean_compound", 0)
-                st.metric(
-                    result.ticker,
-                    f"${result.spot:.2f}",
-                    delta=f"News tone {sent:+.2f}",
-                    help=HELP_TICKER_SPOT,
-                )
+    """Legacy alias — redirects to the Fund Manager table."""
+    render_scan_summary_table(results)
 
 
 def _cell_float(value) -> float:
@@ -722,15 +833,27 @@ def render_results(
 ) -> None:
     if macro is not None:
         render_macro_environment(macro)
-    render_summary(results)
+
+    ordered = _sorted_results(results)
+    render_scan_summary_table(ordered)
+
     ranked = _combine_ranked_picks(results)
     scalper_ranked = _combine_scalper_picks(results)
     include_0dte = any(r.contracts_scanned_0dte > 0 for r in results)
 
-    tabs = st.tabs([r.ticker for r in results])
-    for tab, result in zip(tabs, results):
-        with tab:
-            render_ticker_tab(result)
+    st.divider()
+    st.subheader(DEEP_DIVE_TITLE)
+    st.caption(DEEP_DIVE_INTRO)
+
+    ticker_options = [r.ticker for r in ordered]
+    by_ticker = {r.ticker: r for r in results}
+    selected = st.selectbox(
+        "Select ticker for health check",
+        options=ticker_options,
+        key="deep_dive_ticker",
+        help="Pick one symbol — full-width Health Check, ranked ideas, and Payoff X-Ray below.",
+    )
+    render_ticker_tab(by_ticker[selected])
 
     render_bottom_results(
         ranked,
