@@ -48,6 +48,22 @@ SENTIMENT_MULT_BEARISH = 0.60
 SENTIMENT_MULT_NEUTRAL = 1.0
 
 EARNINGS_AVOID_DAYS = 3
+EARNINGS_HARD_BLOCK = True
+
+# Ghost Tax — bid/ask slippage
+HIGH_SPREAD_WARNING_PCT = 0.08
+SPREAD_CONFIDENCE_HALVE_PCT = 0.10
+
+# Echo Chamber — sector diversification in batch scans
+SECTOR_PENALTY_MULT = 0.92
+
+# Tide Check — 200-day SMA macro filter
+SMA200_CONFIDENCE_MULT = 0.85
+SMA200_KELLY_MULT = 0.75
+
+# Emergency brake — cumulative open-trade P95 exposure
+ACCOUNT_RISK_LOCK_PCT = 0.10
+JOURNAL_FILENAME = "my_trades.csv"
 
 # Macro environment (VIX + SPY trend) — conviction scoring only
 VIX_CALM_MAX = 18

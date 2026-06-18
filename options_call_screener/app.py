@@ -19,8 +19,10 @@ from ui.exit_checker import render_exit_checker
 from ui.results import render_header, render_results
 from ui.sidebar import render_sidebar
 from ui.sizing_sandbox import render_sizing_sandbox
+from config import DEFAULT_BANKROLL
+from ui.trade_journal import render_risk_dashboard
 
-APP_VERSION = "3.8.0"
+APP_VERSION = "3.9.0"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(
@@ -37,6 +39,9 @@ def main() -> None:
     render_header(app_version=APP_VERSION, app_root=APP_ROOT)
     render_engine_guide()
     render_sizing_sandbox(expanded=True)
+    bankroll = float(st.session_state.get("sandbox_bankroll", DEFAULT_BANKROLL))
+    execution_locked = render_risk_dashboard(bankroll)
+    st.session_state["execution_locked"] = execution_locked
     render_exit_checker(expanded=False)
 
     config = render_sidebar()
@@ -65,9 +70,9 @@ def main() -> None:
     progress.progress(1.0, text="Done!")
     progress.empty()
     if hasattr(output, "results"):
-        render_results(output.results, macro=output.macro)
+        render_results(output.results, macro=output.macro, execution_locked=execution_locked)
     else:
-        render_results(output)
+        render_results(output, execution_locked=execution_locked)
 
 
 if __name__ == "__main__":

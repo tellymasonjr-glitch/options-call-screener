@@ -31,3 +31,12 @@ def fetch_dividend_yield(ticker: str) -> float:
     if q > 0.5:
         q /= 100.0
     return min(q, 0.15)
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def fetch_sector(ticker: str) -> str:
+    try:
+        info = yf.Ticker(ticker.upper()).info or {}
+        return str(info.get("sector") or info.get("industry") or "Unknown")
+    except Exception:
+        return "Unknown"

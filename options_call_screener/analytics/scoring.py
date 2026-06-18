@@ -14,7 +14,15 @@ from analytics.stock_profile import StockProfile
 from analytics.volatility import iv_rank, iv_hv_score
 from analytics.plain_rationale import generate_plain_english_rationale
 from analytics.technical import conviction_technical_multiplier, fractional_kelly_risk_pct
-from config import EPR_LOSS_PCT, SCORE_WEIGHTS
+from config import (
+    EPR_LOSS_PCT,
+    HIGH_SPREAD_WARNING_PCT,
+    SCORE_WEIGHTS,
+    SMA200_CONFIDENCE_MULT,
+    SMA200_KELLY_MULT,
+    SPREAD_CONFIDENCE_HALVE_PCT,
+)
+from data.earnings import earnings_hard_block
 
 
 def _normalize(series: pd.Series) -> pd.Series:
@@ -50,6 +58,15 @@ def _contract_near_earnings(expiration: str, earnings_dates: list) -> bool:
         if abs((exp - earn).days) <= 14:
             return True
     return False
+
+
+def _spread_confidence_mult(spread_pct: float) -> float:
+    """Ghost Tax — wide bid/ask erodes edge before the trade starts."""
+    if spread_pct >= SPREAD_CONFIDENCE_HALVE_PCT:
+        return 0.5
+    if spread_pct >= HIGH_SPREAD_WARNING_PCT:
+        return 0.75
+    return 1.0
 
 
 def score_contracts(
@@ -88,6 +105,7 @@ def score_contracts(
 
         rank = iv_rank(iv, iv_samples + [iv])
         near_earn = _contract_near_earnings(str(c.get("expiration", "")), earnings_dates)
+        earn_nogo = earnings_hard_block(str(c.get("expiration", "")), earnings_dates)
         metrics = compute_trade_metrics(
             spot, strike, ask, dte, iv, hv, theta, div_yield=div_yield
         )
@@ -143,6 +161,7 @@ def score_contracts(
                 "stress_passes_epr": stress.passes_epr,
                 "stress_worst_spot": stress.worst_spot_shock,
                 "stress_worst_vol": stress.worst_vol_shock,
+                "earnings_nogo": earn_nogo,
             }
         )
 
@@ -184,6 +203,11 @@ def score_contracts(
         axis=1,
     )
 
+    spread_mult = df["spread_pct"].apply(_spread_confidence_mult)
+    tide_mult = SMA200_CONFIDENCE_MULT if (profile is not None and not profile.above_sma_200) else 1.0
+    if profile is not None and not profile.above_sma_200:
+        df["half_kelly_pct"] = df["half_kelly_pct"] * SMA200_KELLY_MULT
+
     base = (
         df["raw_conviction"]
         * sentiment_mult
@@ -191,10 +215,20 @@ def score_contracts(
         * cal_mult
         * tech_mult
         * df["risk_penalty_mult"]
+        * spread_mult
+        * tide_mult
     )
     df["display_confidence"] = base.clip(0, 100)
-    df["kelly_edge_ok"] = df["half_kelly_pct"] > 0
+    df["spread_mult"] = spread_mult
+    df["tide_mult"] = tide_mult
     df["conviction_score"] = df["display_confidence"].copy()
+
+    if "earnings_nogo" in df.columns:
+        nogo = df["earnings_nogo"].fillna(False).astype(bool)
+        df.loc[nogo, "display_confidence"] = 0.0
+        df.loc[nogo, "conviction_score"] = 0.0
+
+    df["kelly_edge_ok"] = df["half_kelly_pct"] > 0
     weak_kelly = ~df["kelly_edge_ok"]
     if weak_kelly.any():
         df.loc[weak_kelly, "conviction_score"] = (

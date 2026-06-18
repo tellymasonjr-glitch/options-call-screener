@@ -9,7 +9,9 @@ import pandas as pd
 import streamlit as st
 
 from analytics.macro import MacroEnvironment
+from analytics.payoff_viz import build_payoff_chart
 from screener import TickerResult
+from ui.trade_journal import render_execute_button
 from ui.column_config import CONVICTION_COLUMN_CONFIG, SCALPER_COLUMN_CONFIG
 from ui.copy import (
     APP_SUBTITLE,
@@ -195,6 +197,9 @@ def _format_pick_line(row: pd.Series, *, suffix: str = "", numbered: bool = True
     )
     if score is not None:
         line += f" · confidence {score:.0f}/100"
+    sector = row.get("sector")
+    if sector and str(sector) not in ("", "Unknown", "nan"):
+        line += f" · {sector}"
     ev_line = _format_expected_return(row)
     if ev_line:
         line += f" · {ev_line}"
@@ -202,7 +207,14 @@ def _format_pick_line(row: pd.Series, *, suffix: str = "", numbered: bool = True
     return line
 
 
-def render_simple_pick_list(ranked: pd.DataFrame, *, title: str, suffix: str = "") -> None:
+def render_simple_pick_list(
+    ranked: pd.DataFrame,
+    *,
+    title: str,
+    suffix: str = "",
+    results: list[TickerResult] | None = None,
+    execution_locked: bool = False,
+) -> None:
     """Simple numbered list for quick logging."""
     st.subheader(title)
     st.caption(
@@ -223,12 +235,23 @@ def render_simple_pick_list(ranked: pd.DataFrame, *, title: str, suffix: str = "
         loggable = loggable.drop(columns=["rank"], errors="ignore")
         loggable.insert(0, "rank", range(1, len(loggable) + 1))
 
+    spots = {r.ticker: r.spot for r in (results or [])}
+
     shown = 0
     for _, row in loggable.iterrows():
         score = _pick_confidence(row)
         if score is not None and score < 1:
             continue
         st.markdown(_format_pick_line(row, suffix=suffix))
+        ticker = str(row.get("ticker", ""))
+        spot = spots.get(ticker, 0.0)
+        render_execute_button(
+            row,
+            spot,
+            sector=str(row.get("sector", "")),
+            button_key=f"paper_exec_{ticker}_{row.get('strike')}_{row.get('expiration')}_{shown}",
+            locked=execution_locked,
+        )
         shown += 1
 
     if shown == 0 and not loggable.empty:
@@ -254,6 +277,8 @@ def render_bottom_results(
     scalper_ranked: pd.DataFrame,
     *,
     include_0dte: bool,
+    results: list[TickerResult] | None = None,
+    execution_locked: bool = False,
 ) -> None:
     """Download + simple lists — always at the bottom after ticker tabs."""
     st.divider()
@@ -278,7 +303,12 @@ def render_bottom_results(
             mime="text/csv",
             key="download_conviction_csv",
         )
-        render_simple_pick_list(ranked, title="Quick List — Log These for Paper Trading")
+        render_simple_pick_list(
+            ranked,
+            title="Quick List — Log These for Paper Trading",
+            results=results,
+            execution_locked=execution_locked,
+        )
 
     if include_0dte:
         st.divider()
@@ -537,6 +567,13 @@ def render_ticker_tab(result: TickerResult) -> None:
                 f"**Round-number zone** — within 3% of \\${t.nearest_round:g} "
                 "(psychological level traders watch)."
             )
+        if not p.above_sma_200:
+            st.warning(
+                "**Tide Check** — price is below the 200-day moving average. "
+                "Local breakouts often fail against the long-term trend; confidence and Kelly size are reduced."
+            )
+        if result.sector:
+            st.caption(f"**Sector:** {result.sector} (duplicate sectors in a batch scan are penalized).")
         if t.momentum_accelerating:
             st.caption("Momentum is **accelerating** (5-day pace faster than 20-day trend).")
         if result.wheel_note:
@@ -609,6 +646,31 @@ def render_ticker_tab(result: TickerResult) -> None:
                 f"**Vanna / Charm:** {float(top['vanna']):.4f} / {float(top.get('charm', 0)):.4f} "
                 "(second-order Greeks — Delta sensitivity to IV and time)."
             )
+
+        st.subheader("Payoff X-Ray")
+        st.caption("Green zone = profit at expiry · red = loss · dotted lines = breakeven and current price.")
+        try:
+            st.plotly_chart(
+                build_payoff_chart(
+                    result.spot,
+                    float(top["strike"]),
+                    float(top["ask"]),
+                    result.ticker,
+                ),
+                use_container_width=True,
+            )
+        except Exception as exc:
+            st.caption(f"Payoff chart unavailable: {exc}")
+
+        locked = st.session_state.get("execution_locked", False)
+        render_execute_button(
+            top,
+            result.spot,
+            sector=result.sector or str(top.get("sector", "")),
+            button_key=f"paper_top_{result.ticker}",
+            locked=locked,
+        )
+
         with st.expander("Why this idea? (plain English)", expanded=True):
             st.markdown(top.get("rationale", "No explanation available."))
 
@@ -631,6 +693,8 @@ def render_ticker_tab(result: TickerResult) -> None:
 def render_results(
     results: list[TickerResult],
     macro: MacroEnvironment | None = None,
+    *,
+    execution_locked: bool = False,
 ) -> None:
     if macro is not None:
         render_macro_environment(macro)
@@ -644,4 +708,10 @@ def render_results(
         with tab:
             render_ticker_tab(result)
 
-    render_bottom_results(ranked, scalper_ranked, include_0dte=include_0dte)
+    render_bottom_results(
+        ranked,
+        scalper_ranked,
+        include_0dte=include_0dte,
+        results=results,
+        execution_locked=execution_locked,
+    )

@@ -84,3 +84,12 @@ def expiration_near_earnings(
         if abs((exp - earn).days) <= avoid_days:
             return True
     return False
+
+
+def earnings_hard_block(
+    expiration: str,
+    earnings_dates: list[date],
+    block_days: int = EARNINGS_AVOID_DAYS,
+) -> bool:
+    """Landmine Sweeper — True if expiry overlaps earnings window (NO-GO)."""
+    return expiration_near_earnings(expiration, earnings_dates, block_days)

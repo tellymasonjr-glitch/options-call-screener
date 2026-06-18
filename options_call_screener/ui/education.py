@@ -6,16 +6,16 @@ import streamlit as st
 
 
 def render_engine_guide() -> None:
-    with st.expander("How confidence is built (v3.8 math)", expanded=False):
+    with st.expander("How confidence is built (v3.9 — at-a-glance)", expanded=False):
         st.markdown(
             """
-**Modules active in this build:**
-1. **BSM engine** — dividend-adjusted pricing; Delta, Gamma, Theta, Vega, Rho, **Vanna**, **Charm**
-2. **Portfolio stress grid** — ±15% spot × ±20% IV shocks; flags trades breaching 5% EPR loss cap
-3. **IML monitor** — advisory kill switch in Risk Manager sandbox (no broker API)
-4. **Quarter-Kelly + Monte Carlo** — max 3% risk; P95 drawdown gate before sizing
-5. **Wheel advisory** — tells you when premium-selling may beat long calls (manual execution only)
-
-**Not automated:** live order routing, box spreads, portfolio margin at broker, unusual flow.
+**Visual & execution upgrades:**
+- **Payoff X-Ray** — Plotly P&L curve on every top pick (breakeven + cliff visible)
+- **Landmine Sweeper** — earnings within 3 days = hard NO-GO (0% confidence)
+- **Echo Chamber Guard** — 2nd/3rd stock in same sector penalized in batch scans
+- **Paper journal** — Execute Paper Trade button → `my_trades.csv`
+- **Ghost Tax** — spread ≥10% cuts confidence 50%; ≥8% warns
+- **Tide Check** — below 200-day SMA reduces confidence & Kelly
+- **Emergency brake** — locks new trades if open P95 risk > 10% of bankroll
             """
         )

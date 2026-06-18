@@ -14,3 +14,4 @@ venv/
 *.log
 .DS_Store
 Thumbs.db
+options_call_screener/my_trades.csv

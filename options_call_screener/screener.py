@@ -20,6 +20,7 @@ from analytics.monte_carlo import monte_carlo_long_call
 from analytics.position_sizing import apply_sizing_to_picks
 from analytics.stock_profile import StockProfile, build_stock_profile
 from analytics.wheel_advisory import evaluate_wheel_fit
+from analytics.sector_diversify import apply_sector_diversification
 from analytics.volatility import collect_iv_samples, iv_rank as calc_iv_rank
 from config import (
     DELTA_BOUNDS,
@@ -32,8 +33,8 @@ from config import (
     SCAN_TICKER_DELAY_SEC,
 )
 from data.cached_fetch import fetch_call_contracts, fetch_earnings, fetch_news, get_price_history
-from data.earnings import expiration_near_earnings, upcoming_earnings_dates
-from data.fundamentals import fetch_dividend_yield
+from data.earnings import earnings_hard_block, expiration_near_earnings, upcoming_earnings_dates
+from data.fundamentals import fetch_dividend_yield, fetch_sector
 from data.news_data import analyze_sentiment
 
 
@@ -67,6 +68,7 @@ class TickerResult:
     contracts_scanned_0dte: int = 0
     contracts_passed_0dte: int = 0
     wheel_note: str = ""
+    sector: str = ""
 
 
 def _enrich_picks(
@@ -146,8 +148,10 @@ def scan_ticker(
 
         filtered: list[dict[str, Any]] = []
         for contract in raw_contracts:
+            if earnings_hard_block(contract["expiration"], earn_dates):
+                continue
             if config.avoid_earnings and expiration_near_earnings(
-                contract["expiration"], earn_dates
+                contract["expiration"], earn_dates, avoid_days=7
             ):
                 continue
 
@@ -174,7 +178,10 @@ def scan_ticker(
         if macro and macro.hard_block:
             picks = pd.DataFrame()
         else:
-            picks = tag_picks(scored, config.max_budget, config.picks_per_ticker)
+            tradable = scored
+            if not tradable.empty and "earnings_nogo" in tradable.columns:
+                tradable = tradable[~tradable["earnings_nogo"].fillna(False)]
+            picks = tag_picks(tradable, config.max_budget, config.picks_per_ticker)
 
         wheel_note = ""
         if profile:
@@ -259,5 +266,8 @@ def run_scan(config: ScanConfig, progress=None) -> ScanOutput:
         if i > 0:
             time.sleep(SCAN_TICKER_DELAY_SEC)
         results.append(scan_ticker(config, ticker, spy_history, macro))
+
+    sectors = {t.upper(): fetch_sector(t) for t in tickers}
+    results = apply_sector_diversification(results, sectors)
 
     return ScanOutput(results=results, macro=macro)

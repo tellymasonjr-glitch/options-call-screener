@@ -58,10 +58,14 @@ def evaluate_contract_risks(
         )
 
     spread_friction = (spread_pct * ask * 100) / 2.0 if spread_pct > 0 else 0.0
-    if spread_pct >= 0.12:
+    if spread_pct >= 0.10:
         warnings.append(
-            f"Spread Friction — bid/ask gap costs ~${spread_friction:.0f} per contract "
-            "to enter and exit cleanly."
+            f"Ghost Tax — spread is {spread_pct:.0%} of mid price (~${spread_friction:.0f} slippage per round trip). "
+            "Confidence is cut in half above 10% spread."
+        )
+    elif spread_pct >= 0.08:
+        warnings.append(
+            f"High slippage warning — {spread_pct:.0%} bid/ask gap (~${spread_friction:.0f} friction)."
         )
 
     return ContractRiskFlags(
