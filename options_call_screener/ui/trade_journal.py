@@ -16,6 +16,16 @@ from analytics.portfolio_exposure import (
 from config import ACCOUNT_RISK_LOCK_PCT, JOURNAL_FILENAME
 from data.cached_fetch import get_call_quote, get_spot_price
 from data.yf_utils import is_rate_limit_error
+from ui.copy import (
+    HELP_MIRROR_SPY,
+    HELP_OPEN_TRADES,
+    HELP_P95_RISK,
+    HELP_RISK_CAP,
+    MIRROR_CHECK_INTRO,
+    RISK_DASHBOARD_INTRO,
+    RISK_DASHBOARD_TITLE,
+    WHY_AUTOPSY,
+)
 
 JOURNAL_COLUMNS = [
     "logged_at",
@@ -262,8 +272,10 @@ def render_mirror_check(*, in_sidebar: bool = False) -> None:
     container = st.sidebar if in_sidebar else st
     if in_sidebar:
         container.markdown("**Mirror Check**")
+        container.caption(MIRROR_CHECK_INTRO)
     else:
         container.subheader("Mirror Check")
+        container.caption(MIRROR_CHECK_INTRO)
 
     if open_count == 0:
         container.caption("No open paper trades — SPY-equivalent exposure is 0.")
@@ -272,7 +284,7 @@ def render_mirror_check(*, in_sidebar: bool = False) -> None:
     container.metric(
         "SPY-equivalent shares",
         f"{spy_equiv:,.0f}",
-        help="Sum of delta × contracts × 100 × spot × beta / SPY price across open calls.",
+        help=HELP_MIRROR_SPY,
     )
 
     warn = exposure_warning(spy_equiv)
@@ -291,15 +303,18 @@ def render_mirror_check(*, in_sidebar: bool = False) -> None:
 
 def render_risk_dashboard(bankroll: float) -> bool:
     """Show cumulative exposure; return True if new trades are locked."""
+    st.subheader(RISK_DASHBOARD_TITLE)
+    st.caption(RISK_DASHBOARD_INTRO)
+
     total = open_trades_risk_total()
     cap = bankroll * ACCOUNT_RISK_LOCK_PCT if bankroll > 0 else 0
     df = load_journal()
     open_count = len(open_journal_trades(df))
 
     c1, c2, c3 = st.columns(3)
-    c1.metric("Open paper trades", str(open_count))
-    c2.metric("Combined P95 risk", f"${total:,.0f}")
-    c3.metric("Account risk cap", f"${cap:,.0f}" if cap else "—")
+    c1.metric("Open paper trades", str(open_count), help=HELP_OPEN_TRADES)
+    c2.metric("Combined P95 risk", f"${total:,.0f}", help=HELP_P95_RISK)
+    c3.metric("Account risk cap", f"${cap:,.0f}" if cap else "—", help=HELP_RISK_CAP)
 
     locked, msg = is_execution_locked(bankroll)
     if locked:
@@ -337,10 +352,7 @@ def _render_close_trade_ui(df: pd.DataFrame) -> None:
         return
 
     st.markdown("**Autopsy Engine — close a paper trade**")
-    st.caption(
-        "Fetches live bid/spot/IV and splits your P&L into Direction (Delta), "
-        "Time (Theta), and Volatility (Vega)."
-    )
+    st.caption(WHY_AUTOPSY)
 
     labels = [_trade_label(row) for _, row in open_df.iterrows()]
     indices = list(open_df.index)

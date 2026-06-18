@@ -24,7 +24,15 @@ from ui.copy import (
     HELP_BANKROLL,
     HELP_BASE_RISK,
     HELP_CONVICTION,
+    HELP_CONTRACTS,
+    HELP_DOLLAR_BUDGET,
+    HELP_IML,
+    HELP_KILL_SWITCH,
+    HELP_MAINTENANCE,
+    HELP_OPEN_RISK,
     HELP_SANDBOX_ASK,
+    HELP_SIZE_MULT,
+    HELP_TIER_BAND,
     SANDBOX_CAPTION,
     SANDBOX_TITLE,
 )
@@ -77,10 +85,10 @@ def render_sizing_sandbox(*, expanded: bool = True) -> None:
         cost_per_contract = ask * 100
 
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Confidence Band", tier_name, help="How much extra or less risk vs. your base %.")
-        m2.metric("Size Multiplier", f"{tier_mult:.2f}x", help="Applied to your base risk percent.")
-        m3.metric("Dollar Budget", f"${size.risk_budget:,.0f}", help="Max dollars to put on this idea.")
-        m4.metric("Contracts to Buy", str(size.contracts), help="Whole contracts your budget can afford.")
+        m1.metric("Confidence Band", tier_name, help=HELP_TIER_BAND)
+        m2.metric("Size Multiplier", f"{tier_mult:.2f}x", help=HELP_SIZE_MULT)
+        m3.metric("Dollar Budget", f"${size.risk_budget:,.0f}", help=HELP_DOLLAR_BUDGET)
+        m4.metric("Contracts to Buy", str(size.contracts), help=HELP_CONTRACTS)
 
         st.info(size.summary)
 
@@ -107,13 +115,13 @@ def render_sizing_sandbox(*, expanded: bool = True) -> None:
             value=0.0,
             step=100.0,
             key="sandbox_open_risk",
-            help="Total premium paid on open option positions (max loss on long calls).",
+            help=HELP_OPEN_RISK,
         )
         snap = compute_iml(bankroll, open_risk)
         im1, im2, im3 = st.columns(3)
-        im1.metric("IML (equity cushion)", f"${snap.iml:,.0f}")
-        im2.metric("Maintenance req.", f"${snap.maintenance_required:,.0f}")
-        im3.metric("Kill switch", "ON" if snap.kill_switch else "OFF")
+        im1.metric("IML (equity cushion)", f"${snap.iml:,.0f}", help=HELP_IML)
+        im2.metric("Maintenance req.", f"${snap.maintenance_required:,.0f}", help=HELP_MAINTENANCE)
+        im3.metric("Kill switch", "ON" if snap.kill_switch else "OFF", help=HELP_KILL_SWITCH)
         if snap.imd:
             st.error(snap.message)
         else:

@@ -22,7 +22,7 @@ from ui.sizing_sandbox import render_sizing_sandbox
 from config import DEFAULT_BANKROLL
 from ui.trade_journal import render_risk_dashboard
 
-APP_VERSION = "4.0.0"
+APP_VERSION = "4.0.1"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(

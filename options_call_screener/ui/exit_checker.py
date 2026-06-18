@@ -11,6 +11,12 @@ from analytics.stock_profile import build_stock_profile
 from data.cached_fetch import get_call_quote, get_price_history, get_spot_price
 from data.market_data import dte_from_expiration
 from data.yf_utils import is_rate_limit_error
+from ui.copy import (
+    HELP_EXIT_DTE,
+    HELP_EXIT_PROFIT,
+    HELP_EXIT_RSI,
+    HELP_EXIT_SPOT,
+)
 
 
 def render_exit_checker(*, expanded: bool = False) -> None:
@@ -117,10 +123,10 @@ def render_exit_checker(*, expanded: bool = False) -> None:
             )
 
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Stock price", f"${spot:.2f}")
-            m2.metric("Your profit", f"{profit_pct:+.0f}%")
-            m3.metric("Momentum (RSI)", f"{rsi:.0f}")
-            m4.metric("Days left", str(dte))
+            m1.metric("Stock price", f"${spot:.2f}", help=HELP_EXIT_SPOT)
+            m2.metric("Your profit", f"{profit_pct:+.0f}%", help=HELP_EXIT_PROFIT)
+            m3.metric("Momentum (RSI)", f"{rsi:.0f}", help=HELP_EXIT_RSI)
+            m4.metric("Days left", str(dte), help=HELP_EXIT_DTE)
             if not use_manual_profit:
                 st.caption(f"Current contract ask: ${current_ask:.2f} (entry was ${entry_ask:.2f})")
 

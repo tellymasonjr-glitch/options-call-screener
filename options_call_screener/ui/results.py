@@ -19,10 +19,13 @@ from ui.copy import (
     DISCLAIMER_FRIENDLY,
     HELP_BETA,
     HELP_CONVICTION,
+    HELP_MACRO_DETAIL,
     HELP_MACRO_MULT,
+    HELP_PAPER_LOG,
     HELP_RSI,
     HELP_SPY,
     HELP_SPY_SMA,
+    HELP_TICKER_SPOT,
     HELP_TREND_SCORE,
     HELP_VIX,
     HELP_VS_SPY,
@@ -30,6 +33,15 @@ from ui.copy import (
     MACRO_TITLE,
     STOCK_HEALTH_INTRO,
     STOCK_HEALTH_TITLE,
+    WHY_EV,
+    WHY_KELLY,
+    WHY_MC,
+    WHY_PAYOFF_XRAY,
+    WHY_QUICK_LIST_EV,
+    WHY_SCALPER,
+    WHY_SCATTER,
+    WHY_STRESS,
+    WHY_VANNA,
 )
 
 _TAG_LABELS = {
@@ -217,10 +229,7 @@ def render_simple_pick_list(
 ) -> None:
     """Simple numbered list for quick logging."""
     st.subheader(title)
-    st.caption(
-        "**Expected Return** is the model's average profit or loss in dollars per contract "
-        "(positive = math says the premium is cheap vs. normal stock swings; negative = overpriced)."
-    )
+    st.caption(WHY_QUICK_LIST_EV)
 
     if ranked.empty:
         st.caption("Nothing matched your filters in this mode.")
@@ -347,7 +356,7 @@ def render_header(app_version: str = "?", app_root: str = "") -> None:
             file_name="paper_trade_log_template.csv",
             mime="text/csv",
             key="download_paper_log_template",
-            help="Copy-paste into Google Sheets to track 20–30 paper trades during your test period.",
+            help=HELP_PAPER_LOG,
         )
 
 
@@ -387,6 +396,7 @@ def render_macro_environment(macro: MacroEnvironment) -> None:
     else:
         st.success(f"{icon} **{macro.headline}**")
     st.caption(macro.detail)
+    st.caption(HELP_MACRO_DETAIL)
 
 
 def render_summary(results: list[TickerResult]) -> None:
@@ -401,7 +411,7 @@ def render_summary(results: list[TickerResult]) -> None:
                     result.ticker,
                     f"${result.spot:.2f}",
                     delta=f"News tone {sent:+.2f}",
-                    help="Stock price now · news tone from recent headlines (-1 negative to +1 positive).",
+                    help=HELP_TICKER_SPOT,
                 )
 
 
@@ -607,6 +617,7 @@ def render_ticker_tab(result: TickerResult) -> None:
 
         try:
             st.plotly_chart(_build_scatter_chart(result), use_container_width=True)
+            st.caption(f"**Why:** {WHY_SCATTER}")
         except Exception as exc:
             st.error(f"Could not render chart: {exc}")
             st.caption("Try: menu (⋮) → Clear cache, then hard refresh.")
@@ -622,37 +633,47 @@ def render_ticker_tab(result: TickerResult) -> None:
                     st.warning(msg.strip())
         if "size_summary" in top and top.get("size_summary"):
             st.info(f"**Recommended size:** {top['size_summary']}")
+
         kelly = top.get("half_kelly_pct")
-        if kelly is not None and not pd.isna(kelly) and float(kelly) > 0:
-            st.caption(
-                f"**Quarter-Kelly max bankroll risk** on this contract: {float(kelly):.1f}% "
-                "(capped at 3% — sizing uses the lower of tier risk or Kelly)."
-            )
         ev = top.get("ev")
-        if ev is not None and not pd.isna(ev):
-            st.caption(f"**Expected return (1 contract):** \\${float(ev):+,.0f} at expiry (model estimate).")
         stress = top.get("stress_max_loss")
-        if stress is not None and not pd.isna(stress):
-            st.caption(
-                f"**Stress-test worst case:** \\${float(stress):+,.0f} "
-                f"(spot {float(top.get('stress_worst_spot', 0)):+.0%}, "
-                f"IV {float(top.get('stress_worst_vol', 0)):+.0%} shock)."
-            )
         mc_loss = top.get("mc_p95_loss")
+        has_vanna = top.get("vanna") is not None and not pd.isna(top.get("vanna"))
+
+        analytics: list[tuple[str, str, str, str | None]] = []
+        if ev is not None and not pd.isna(ev):
+            analytics.append(("Expected return", f"${float(ev):+,.0f}", WHY_EV, None))
+        if kelly is not None and not pd.isna(kelly) and float(kelly) > 0:
+            analytics.append(("Quarter-Kelly cap", f"{float(kelly):.1f}%", WHY_KELLY, None))
+        if stress is not None and not pd.isna(stress):
+            analytics.append(("Stress worst case", f"${float(stress):+,.0f}", WHY_STRESS, None))
         if mc_loss is not None and not pd.isna(mc_loss):
             cap_ok = top.get("mc_passes_cap", True)
-            st.caption(
-                f"**Monte Carlo P95 loss:** \\${float(mc_loss):,.0f} "
-                f"({'passes' if cap_ok else 'exceeds'} 5% drawdown cap)."
-            )
-        if top.get("vanna") is not None and not pd.isna(top.get("vanna")):
-            st.caption(
-                f"**Vanna / Charm:** {float(top['vanna']):.4f} / {float(top.get('charm', 0)):.4f} "
-                "(second-order Greeks — Delta sensitivity to IV and time)."
-            )
+            analytics.append((
+                "Monte Carlo P95",
+                f"${float(mc_loss):,.0f}",
+                WHY_MC,
+                "pass" if cap_ok else "fail",
+            ))
+        if has_vanna:
+            analytics.append((
+                "Vanna / Charm",
+                f"{float(top['vanna']):.3f} / {float(top.get('charm', 0)):.3f}",
+                WHY_VANNA,
+                None,
+            ))
+
+        if analytics:
+            row = st.columns(min(len(analytics), 4))
+            for i, (label, value, help_text, delta) in enumerate(analytics[:4]):
+                kwargs: dict = {"help": help_text}
+                if delta is not None:
+                    kwargs["delta"] = delta
+                    kwargs["delta_color"] = "normal" if delta == "pass" else "inverse"
+                row[i].metric(label, value, **kwargs)
 
         st.subheader("Payoff X-Ray")
-        st.caption("Green zone = profit at expiry · red = loss · dotted lines = breakeven and current price.")
+        st.caption(WHY_PAYOFF_XRAY)
         try:
             st.plotly_chart(
                 build_payoff_chart(
@@ -682,10 +703,7 @@ def render_ticker_tab(result: TickerResult) -> None:
 
     if not result.scalper_picks.empty:
         st.subheader("Same-Day Scalp Ideas")
-        st.caption(
-            "Expires today — scored on volume and movement, not long-term confidence. "
-            "Much riskier; for experienced users only."
-        )
+        st.caption(WHY_SCALPER)
         _render_pick_table(
             result.scalper_picks,
             SCALPER_DISPLAY_COLS,
