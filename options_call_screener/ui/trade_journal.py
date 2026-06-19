@@ -7,6 +7,7 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
+from analytics.empirical_kelly import compute_empirical_kelly, get_journal_for_kelly
 from analytics.pnl_attribution import attribute_long_call_pnl
 from analytics.portfolio_exposure import (
     beta_weighted_spy_shares,
@@ -21,6 +22,7 @@ from ui.copy import (
     HELP_OPEN_TRADES,
     HELP_P95_RISK,
     HELP_RISK_CAP,
+    HELP_EMPIRICAL_KELLY,
     MIRROR_CHECK_INTRO,
     RISK_DASHBOARD_INTRO,
     RISK_DASHBOARD_TITLE,
@@ -315,6 +317,30 @@ def render_risk_dashboard(bankroll: float) -> bool:
     c1.metric("Open paper trades", str(open_count), help=HELP_OPEN_TRADES)
     c2.metric("Combined P95 risk", f"${total:,.0f}", help=HELP_P95_RISK)
     c3.metric("Account risk cap", f"${cap:,.0f}" if cap else "—", help=HELP_RISK_CAP)
+
+    journal = get_journal_for_kelly()
+    emp = compute_empirical_kelly(journal)
+    if emp.sample_size > 0:
+        e1, e2, e3 = st.columns(3)
+        e1.metric(
+            "Journal win rate",
+            f"{emp.win_rate:.0%}",
+            help=f"Last {emp.sample_size} closed trades.",
+        )
+        e2.metric(
+            "Empirical Quarter-Kelly",
+            f"{emp.quarter_kelly_pct:.1f}%" if emp.sufficient else "—",
+            help=HELP_EMPIRICAL_KELLY,
+        )
+        e3.metric(
+            "Avg win / loss",
+            f"${emp.avg_win:,.0f} / ${emp.avg_loss:,.0f}",
+            help="Reward-to-risk input for journal Kelly.",
+        )
+        if emp.sufficient and emp.quarter_kelly_pct <= 0:
+            st.error(emp.note)
+        else:
+            st.caption(emp.note)
 
     locked, msg = is_execution_locked(bankroll)
     if locked:

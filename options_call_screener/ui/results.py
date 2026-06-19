@@ -783,6 +783,9 @@ def render_ticker_tab(result: TickerResult) -> None:
                     st.warning(msg.strip())
         if "size_summary" in top and top.get("size_summary"):
             st.info(f"**Recommended size:** {top['size_summary']}")
+        kelly_note = top.get("kelly_empirical_note")
+        if kelly_note and str(kelly_note).strip():
+            st.caption(f"**Kelly sizing:** {kelly_note}")
 
         kelly = top.get("half_kelly_pct")
         ev = top.get("ev")

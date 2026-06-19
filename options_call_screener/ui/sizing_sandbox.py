@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import streamlit as st
 
+from analytics.empirical_kelly import compute_empirical_kelly, get_journal_for_kelly, resolve_kelly_cap
 from analytics.margin_monitor import compute_iml
 from analytics.position_sizing import calculate_position_size, conviction_tier_multiplier
+from analytics.technical import fractional_kelly_risk_pct
 from config import (
     CONVICTION_TIER1_MIN,
     CONVICTION_TIER1_MULT,
@@ -26,12 +28,15 @@ from ui.copy import (
     HELP_CONVICTION,
     HELP_CONTRACTS,
     HELP_DOLLAR_BUDGET,
+    HELP_EMPIRICAL_KELLY,
     HELP_IML,
     HELP_KILL_SWITCH,
+    HELP_KELLY_FINAL,
     HELP_MAINTENANCE,
     HELP_OPEN_RISK,
     HELP_SANDBOX_ASK,
     HELP_SIZE_MULT,
+    HELP_THEORETICAL_KELLY,
     HELP_TIER_BAND,
     SANDBOX_CAPTION,
     SANDBOX_TITLE,
@@ -80,8 +85,65 @@ def render_sizing_sandbox(*, expanded: bool = True) -> None:
             help=HELP_SANDBOX_ASK,
         )
 
+        st.markdown("**Kelly cap comparison (theoretical vs your journal)**")
+        k1, k2 = st.columns(2)
+        prob_itm = k1.slider(
+            "Model prob ITM (theoretical)",
+            min_value=0.05,
+            max_value=0.95,
+            value=0.45,
+            step=0.05,
+            key="sandbox_prob_itm",
+            help=HELP_THEORETICAL_KELLY,
+        )
+        reward_risk = k2.number_input(
+            "Model risk/reward ratio",
+            min_value=0.1,
+            max_value=10.0,
+            value=2.0,
+            step=0.1,
+            key="sandbox_reward_risk",
+            help=HELP_THEORETICAL_KELLY,
+        )
+
+        journal = get_journal_for_kelly()
+        empirical = compute_empirical_kelly(journal)
+        theoretical_kelly = fractional_kelly_risk_pct(prob_itm, reward_risk)
+        kelly_cap = resolve_kelly_cap(theoretical_kelly, journal)
+
+        kc1, kc2, kc3 = st.columns(3)
+        kc1.metric(
+            "Theoretical Quarter-Kelly",
+            f"{kelly_cap.theoretical_pct:.1f}%",
+            help=HELP_THEORETICAL_KELLY,
+        )
+        kc2.metric(
+            "Empirical Quarter-Kelly",
+            f"{kelly_cap.empirical_pct:.1f}%" if kelly_cap.empirical_pct is not None else "—",
+            help=HELP_EMPIRICAL_KELLY,
+        )
+        kc3.metric(
+            "Final Kelly cap",
+            f"{kelly_cap.final_pct:.1f}%",
+            help=HELP_KELLY_FINAL,
+        )
+        if empirical.sufficient:
+            st.caption(empirical.note)
+        else:
+            st.info(empirical.note)
+        if kelly_cap.final_pct <= 0 and empirical.sufficient:
+            st.error(
+                "Empirical edge is negative — journal Kelly forces **0%** sizing until execution improves."
+            )
+
         tier_name, tier_mult = conviction_tier_multiplier(conviction)
-        size = calculate_position_size(bankroll, base_risk_pct, conviction, ask)
+        size = calculate_position_size(
+            bankroll,
+            base_risk_pct,
+            conviction,
+            ask,
+            max_risk_pct=kelly_cap.final_pct if kelly_cap.final_pct > 0 else None,
+        )
         cost_per_contract = ask * 100
 
         m1, m2, m3, m4 = st.columns(4)
@@ -93,10 +155,16 @@ def render_sizing_sandbox(*, expanded: bool = True) -> None:
         st.info(size.summary)
 
         st.markdown(
-            f"**How we got there:** `${bankroll:,.0f}` account x `{base_risk_pct}%` base risk x "
-            f"`{tier_mult}` multiplier = **${size.risk_budget:,.0f}** budget. "
-            f"Each contract costs `${cost_per_contract:,.0f}` (${ask:.2f} x 100 shares) -> "
-            f"**{size.contracts}** contract(s)."
+            f"**How we got there:** `${bankroll:,.0f}` account × `{base_risk_pct}%` base risk × "
+            f"`{tier_mult}` multiplier, capped by **{kelly_cap.final_pct:.1f}%** Kelly "
+            f"(min of theoretical {kelly_cap.theoretical_pct:.1f}%"
+            + (
+                f" and empirical {kelly_cap.empirical_pct:.1f}%"
+                if kelly_cap.empirical_pct is not None
+                else ""
+            )
+            + f") → **${size.risk_budget:,.0f}** budget. "
+            f"Each contract costs `${cost_per_contract:,.0f}` → **{size.contracts}** contract(s)."
         )
 
         st.caption(

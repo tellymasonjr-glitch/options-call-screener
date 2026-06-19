@@ -6,19 +6,17 @@ import streamlit as st
 
 
 def render_engine_guide() -> None:
-    with st.expander("How confidence is built (v5.0 — predictive vol)", expanded=False):
+    with st.expander("How confidence is built (v5.3 — empirical Kelly)", expanded=False):
         st.markdown(
             """
-**Predictive upgrade (v5.0):**
-- **GARCH(1,1) vol forecast** — 5-day forward vol replaces part of backward HV in fair-value pricing
-- **Vol regime** — expand (GARCH > HV) vs compress (GARCH < HV) flags Vega overpay risk
+**Execution reality (v5.3):**
+- **Empirical Kelly** — trailing journal win rate + avg win/loss caps Quarter-Kelly sizing
+- **Final cap** — min(theoretical BS Kelly, empirical Kelly, 3% bankroll)
+
+**Predictive vol (v5.0):**
+- **GARCH(1,1)** — 5-day forward vol blended into BSM fair value · expand/compress regimes
 
 **System management (v4.0):**
-- **Empty Room** — OI &lt; 50 or volume &lt; 10 → 0% confidence
-- **Mirror Check** — beta-weighted SPY-equivalent shares
-- **Autopsy Engine** — close journal trades → Delta / Theta / Vega P&amp;L split
-
-**Capital preservation (v3.9):**
-- Payoff X-Ray · Landmine Sweeper · Echo Chamber Guard · Ghost Tax · Tide Check · Emergency brake
+- Empty Room · Mirror Check · Autopsy Engine · Payoff X-Ray · Emergency brake
             """
         )

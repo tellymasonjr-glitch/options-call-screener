@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from analytics.empirical_kelly import get_journal_for_kelly, resolve_kelly_cap
 from config import (
     CONVICTION_TIER1_MIN,
     CONVICTION_TIER1_MULT,
@@ -95,14 +96,17 @@ def apply_sizing_to_picks(picks, bankroll: float, base_risk_pct: float):
 
     import pandas as pd
 
+    journal = get_journal_for_kelly()
     rows = []
     for _, row in picks.iterrows():
         hk = row.get("half_kelly_pct")
-        max_risk = (
+        theoretical = (
             float(hk)
             if hk is not None and hk == hk and float(hk) > 0  # NaN-safe
-            else None
+            else 0.0
         )
+        kelly_cap = resolve_kelly_cap(theoretical, journal)
+        max_risk = kelly_cap.final_pct if kelly_cap.final_pct > 0 else None
         score_val = None
         for key in ("display_confidence", "conviction_score"):
             val = row.get(key)
@@ -121,6 +125,21 @@ def apply_sizing_to_picks(picks, bankroll: float, base_risk_pct: float):
         updated["size_contracts"] = size.contracts
         updated["size_total_cost"] = size.total_cost
         updated["size_risk_pct"] = size.risk_pct_of_bankroll
+        updated["kelly_theoretical_pct"] = kelly_cap.theoretical_pct
+        updated["kelly_empirical_pct"] = kelly_cap.empirical_pct
+        updated["kelly_final_cap_pct"] = kelly_cap.final_pct
+        if (
+            kelly_cap.empirical.sufficient
+            and kelly_cap.empirical_pct is not None
+            and kelly_cap.final_pct < kelly_cap.theoretical_pct
+        ):
+            updated["kelly_empirical_note"] = (
+                f"Empirical Kelly capped risk at {kelly_cap.final_pct:.1f}% "
+                f"(theoretical {kelly_cap.theoretical_pct:.1f}%, "
+                f"journal {kelly_cap.empirical_pct:.1f}%)."
+            )
+        else:
+            updated["kelly_empirical_note"] = kelly_cap.empirical.note
         if updated.get("mc_passes_cap") is False and size.contracts > 0:
             updated["size_contracts"] = max(0, size.contracts // 2)
             updated["size_total_cost"] = updated["size_contracts"] * float(row["ask"]) * 100

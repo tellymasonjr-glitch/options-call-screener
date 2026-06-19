@@ -99,6 +99,10 @@ CONVICTION_TIER3_MULT = 0.5
 KELLY_FRACTION = 0.25
 MAX_KELLY_RISK_PCT = 3.0
 
+# Empirical Kelly — journal-driven sizing cap (v5.3)
+EMPIRICAL_KELLY_LOOKBACK = 30
+EMPIRICAL_KELLY_MIN_TRADES = 5
+
 # Portfolio stress grid (Module 2)
 STRESS_SPOT_SHOCKS = [-0.15, -0.10, -0.05, 0.0, 0.05, 0.10, 0.15]
 STRESS_VOL_SHOCKS = [-0.20, 0.0, 0.20]

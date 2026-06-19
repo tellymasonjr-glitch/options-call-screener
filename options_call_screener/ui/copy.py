@@ -314,6 +314,18 @@ HELP_KILL_SWITCH = (
     "Advisory flag when IML drops below safe levels. "
     "Why it matters: mimics a prop-desk rule — stop adding risk when the account is already stressed."
 )
+HELP_EMPIRICAL_KELLY = (
+    "Quarter-Kelly cap from your last closed paper trades (win rate + avg win/loss). "
+    "Why it matters: if your actual execution lags the model, this cuts size before the account pays for slippage and emotion."
+)
+HELP_THEORETICAL_KELLY = (
+    "Quarter-Kelly from Black-Scholes prob ITM and model risk/reward. "
+    "Why it matters: what a perfect robot would size — capped by empirical reality when journal data exists."
+)
+HELP_KELLY_FINAL = (
+    "min(theoretical Kelly, empirical Kelly, 3% bankroll cap). "
+    "Why it matters: the brakes — you size to the weaker of math and your proven track record."
+)
 HELP_PAPER_LOG = (
     "CSV template for tracking 20–30 paper trades. "
     "Why it matters: the journal inside the app is faster, but a spreadsheet backup "
