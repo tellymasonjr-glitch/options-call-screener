@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from analytics.technical import TechnicalSignals, compute_technical_signals
+from analytics.vol_forecast import blended_forecast_hv, forecast_garch_vol
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,14 @@ class StockProfile:
 
     # Bollinger / ATR / volume (local OHLCV math)
     tech: TechnicalSignals
+
+    # GARCH forward vol (v5.0)
+    garch_vol_5d: float = 0.0
+    garch_available: bool = False
+    garch_hv_ratio: float = 1.0
+    garch_regime: str = "neutral"
+    garch_note: str = ""
+    effective_hv: float = 0.0
 
 
 def _annualized_hv(closes: pd.Series, days: int) -> float:
@@ -260,6 +269,10 @@ def build_stock_profile(
 
     tech = compute_technical_signals(history)
 
+    hv_blend = hv_30 * 0.5 + hv_60 * 0.3 + hv_90 * 0.2
+    garch_fc = forecast_garch_vol(closes, hv_30=hv_30)
+    eff_hv = blended_forecast_hv(hv_blend, garch_fc)
+
     return StockProfile(
         ticker=ticker,
         spot=spot,
@@ -292,4 +305,10 @@ def build_stock_profile(
         volume_score=volume_score,
         profile_score=profile_score,
         tech=tech,
+        garch_vol_5d=garch_fc.garch_vol_annual,
+        garch_available=garch_fc.available,
+        garch_hv_ratio=garch_fc.garch_hv_ratio,
+        garch_regime=garch_fc.regime,
+        garch_note=garch_fc.note,
+        effective_hv=eff_hv,
     )

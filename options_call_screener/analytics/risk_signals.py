@@ -27,6 +27,7 @@ def evaluate_contract_risks(
     near_earnings: bool,
     open_interest: int = 0,
     volume: int = 0,
+    garch_regime: str = "neutral",
 ) -> ContractRiskFlags:
     """Retail-trap detectors aligned with long-call premium buying."""
     warnings: list[str] = []
@@ -62,6 +63,17 @@ def evaluate_contract_risks(
         )
 
     spread_friction = (spread_pct * ask * 100) / 2.0 if spread_pct > 0 else 0.0
+    if garch_regime == "compress":
+        warnings.append(
+            "GARCH Vol Compression — forward vol forecast is below 30-day HV. "
+            "Calm may lie ahead; you may be overpaying Vega if IV is still elevated."
+        )
+    elif garch_regime == "expand":
+        warnings.append(
+            "GARCH Vol Expansion — forward vol forecast exceeds 30-day HV. "
+            "Volatility clustering suggests bigger moves ahead; fair-value uses blended forward vol."
+        )
+
     if open_interest < MIN_OPEN_INTEREST or volume < MIN_VOLUME:
         warnings.append(
             f"Empty Room — OI {open_interest} / volume {volume}. "

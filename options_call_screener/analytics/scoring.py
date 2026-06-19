@@ -16,6 +16,7 @@ from analytics.plain_rationale import generate_plain_english_rationale
 from analytics.technical import conviction_technical_multiplier, fractional_kelly_risk_pct
 from config import (
     EPR_LOSS_PCT,
+    GARCH_COMPRESS_CONFIDENCE_MULT,
     HIGH_SPREAD_WARNING_PCT,
     MIN_OPEN_INTEREST,
     MIN_VOLUME,
@@ -47,6 +48,21 @@ def _blended_hv(profile: StockProfile | None, fallback: float) -> float:
     if profile is None:
         return fallback
     return profile.hv_30 * 0.5 + profile.hv_60 * 0.3 + profile.hv_90 * 0.2
+
+
+def _effective_hv(profile: StockProfile | None, fallback: float) -> float:
+    """GARCH-blended forward vol when available, else backward-looking HV blend."""
+    if profile is not None and profile.effective_hv > 0:
+        return profile.effective_hv
+    return _blended_hv(profile, fallback)
+
+
+def _garch_confidence_mult(profile: StockProfile | None) -> float:
+    if profile is None or not profile.garch_available:
+        return 1.0
+    if profile.garch_regime == "compress":
+        return GARCH_COMPRESS_CONFIDENCE_MULT
+    return 1.0
 
 
 def _contract_near_earnings(expiration: str, earnings_dates: list) -> bool:
@@ -88,7 +104,9 @@ def score_contracts(
     if not contracts:
         return pd.DataFrame()
 
-    hv = _blended_hv(profile, hv_30)
+    hv = _effective_hv(profile, hv_30)
+    hv_backward = _blended_hv(profile, hv_30)
+    garch_mult = _garch_confidence_mult(profile)
     compound = sentiment.get("mean_compound", 0.0)
     sentiment_score_base = max(0.0, min(100.0, (compound + 1) * 50))
     profile_score_base = profile.profile_score if profile else (70.0 if trend_up else 35.0)
@@ -123,6 +141,7 @@ def score_contracts(
             near_earnings=near_earn,
             open_interest=oi,
             volume=vol,
+            garch_regime=profile.garch_regime if profile else "neutral",
         )
         stress = long_call_stress_test(
             spot,
@@ -170,6 +189,11 @@ def score_contracts(
                 "stress_worst_vol": stress.worst_vol_shock,
                 "earnings_nogo": earn_nogo,
                 "empty_room": empty_room,
+                "garch_vol_5d": profile.garch_vol_5d if profile else None,
+                "garch_hv_ratio": profile.garch_hv_ratio if profile else None,
+                "garch_regime": profile.garch_regime if profile else "neutral",
+                "effective_hv": hv,
+                "hv_backward": hv_backward,
             }
         )
 
@@ -213,6 +237,7 @@ def score_contracts(
 
     spread_mult = df["spread_pct"].apply(_spread_confidence_mult)
     tide_mult = SMA200_CONFIDENCE_MULT if (profile is not None and not profile.above_sma_200) else 1.0
+    df["garch_mult"] = garch_mult
     if profile is not None and not profile.above_sma_200:
         df["half_kelly_pct"] = df["half_kelly_pct"] * SMA200_KELLY_MULT
 
@@ -225,6 +250,7 @@ def score_contracts(
         * df["risk_penalty_mult"]
         * spread_mult
         * tide_mult
+        * garch_mult
     )
     df["display_confidence"] = base.clip(0, 100)
     df["spread_mult"] = spread_mult

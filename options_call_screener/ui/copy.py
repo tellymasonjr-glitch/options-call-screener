@@ -138,6 +138,15 @@ HELP_HV = (
     "Why it matters: fair-value math uses this to judge if the option premium is "
     "cheap or expensive vs. how the stock actually behaves."
 )
+HELP_GARCH_VOL = (
+    "5-day GARCH(1,1) forward volatility forecast — anticipates vol clustering after shocks. "
+    "Why it matters: replaces purely backward-looking HV when pricing fair value; "
+    "expand regime = bigger moves expected, compress = possible Vega overpay."
+)
+HELP_EFFECTIVE_HV = (
+    "50/50 blend of GARCH forecast and historical vol used in Black-Scholes fair value. "
+    "Why it matters: this is the predictive input to expected return — not the flat 30-day average alone."
+)
 HELP_SMA_STACK = (
     "Short / medium / long trend arrows. All up = healthy uptrend. "
     "Mixed or all down = trend is fighting you."

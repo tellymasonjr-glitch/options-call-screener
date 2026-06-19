@@ -19,6 +19,8 @@ from ui.copy import (
     DISCLAIMER_FRIENDLY,
     HELP_BETA,
     HELP_CONVICTION,
+    HELP_EFFECTIVE_HV,
+    HELP_GARCH_VOL,
     HELP_MACRO_DETAIL,
     HELP_MACRO_MULT,
     HELP_PAPER_LOG,
@@ -431,6 +433,8 @@ def _build_scan_summary_df(results: list[TickerResult]) -> pd.DataFrame:
                     "Trend score": None,
                     "RSI": None,
                     "Beta": None,
+                    "GARCH 5d vol": None,
+                    "Vol regime": "—",
                     "Ideas found": 0,
                     "Contracts passed": 0,
                 }
@@ -459,6 +463,8 @@ def _build_scan_summary_df(results: list[TickerResult]) -> pd.DataFrame:
                 "Trend score": round(p.profile_score, 0) if p else None,
                 "RSI": round(p.rsi_14, 0) if p else None,
                 "Beta": round(p.beta_60, 2) if p else None,
+                "GARCH 5d vol": round(p.garch_vol_5d, 3) if p and p.garch_available else None,
+                "Vol regime": p.garch_regime if p and p.garch_available else "—",
                 "Ideas found": len(r.picks),
                 "Contracts passed": r.contracts_passed,
             }
@@ -515,6 +521,15 @@ def render_scan_summary_table(results: list[TickerResult]) -> None:
             ),
             "RSI": st.column_config.NumberColumn("RSI", help=HELP_RSI, format="%.0f"),
             "Beta": st.column_config.NumberColumn("Beta", help=HELP_BETA, format="%.2f"),
+            "GARCH 5d vol": st.column_config.NumberColumn(
+                "GARCH 5d vol",
+                help=HELP_GARCH_VOL,
+                format="%.1%",
+            ),
+            "Vol regime": st.column_config.TextColumn(
+                "Vol regime",
+                help="expand = GARCH > HV · compress = GARCH < HV (Vega overpay risk).",
+            ),
             "Ideas found": st.column_config.NumberColumn("Ideas found"),
             "Contracts passed": st.column_config.NumberColumn("Contracts passed"),
         },
@@ -647,6 +662,30 @@ def render_ticker_tab(result: TickerResult) -> None:
             f"{p.beta_60:.2f}",
             help=HELP_BETA,
         )
+
+        if p.garch_available:
+            g1, g2, g3 = st.columns(3)
+            g1.metric(
+                "GARCH 5d forecast",
+                f"{p.garch_vol_5d:.1%}",
+                help=HELP_GARCH_VOL,
+            )
+            g2.metric(
+                "Effective HV (BSM)",
+                f"{p.effective_hv:.1%}",
+                help=HELP_EFFECTIVE_HV,
+            )
+            g3.metric(
+                "GARCH / 30d HV",
+                f"{p.garch_hv_ratio:.2f}x",
+                help="Above 1.08 = expansion expected · below 0.92 = compression (Vega caution).",
+            )
+            if p.garch_regime == "expand":
+                st.info(p.garch_note)
+            elif p.garch_regime == "compress":
+                st.warning(p.garch_note)
+            elif p.garch_note:
+                st.caption(p.garch_note)
 
         trend_short = "Up" if p.above_sma_20 else "Down"
         trend_med = "Up" if p.above_sma_50 else "Down"

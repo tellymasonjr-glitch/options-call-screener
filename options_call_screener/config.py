@@ -68,6 +68,14 @@ JOURNAL_FILENAME = "my_trades.csv"
 # Mirror Check — beta-weighted SPY exposure warning
 SPY_EXPOSURE_WARN_SHARES = 100
 
+# GARCH(1,1) forward vol forecast (v5.0)
+GARCH_FORECAST_HORIZON = 5
+GARCH_MIN_OBS = 120
+GARCH_HV_BLEND = 0.50
+GARCH_EXPAND_RATIO = 1.08
+GARCH_COMPRESS_RATIO = 0.92
+GARCH_COMPRESS_CONFIDENCE_MULT = 0.94
+
 # Macro environment (VIX + SPY trend) — conviction scoring only
 VIX_CALM_MAX = 18
 VIX_ELEVATED_MAX = 25
