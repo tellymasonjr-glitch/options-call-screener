@@ -26,13 +26,11 @@ HELP_TICKERS = (
     "Why it matters: illiquid tickers fail the Empty Room filter — scanning liquid names "
     "keeps you out of contracts nobody can exit."
 )
-HELP_MASK_PRESET = (
-    "M.A.S.K. Foundation preset scans INTU, BSX, CRM, CEG — high-conviction names filtered "
-    "for Moat, Absolute necessity, Scale, and Known demand. "
-    "Why it matters: strong fundamentals are fuel only; GARCH, Kelly, and all safety gates still run on every contract."
+HELP_STOCK_PRESETS = (
+    "Load a curated ticker playlist into Companies to Scan. Select multiple playlists "
+    "to stack them (e.g. Institutional Giants + Index Macro). "
+    "Why it matters: picks the pond you fish in — GARCH, Kelly, and all gates still decide each trade."
 )
-MASK_PRESET_LABEL = "M.A.S.K. Foundation (INTU, BSX, CRM, CEG)"
-PAPER_PRESET_LABEL = "Paper-trade batch (default)"
 HELP_CUSTOM_TICKER = (
     "Type one extra symbol and it will be added to today's scan. "
     "Why it matters: stick to names with active options volume so Ghost Tax and spread gates stay honest."

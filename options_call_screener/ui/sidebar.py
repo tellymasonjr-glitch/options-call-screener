@@ -13,7 +13,6 @@ from config import (
     DEFAULT_MIN_DTE,
     DEFAULT_PICKS_PER_TICKER,
     DEFAULT_TICKERS,
-    FOUNDATION_WATCHLIST,
     MAX_BANKROLL,
     MAX_BUDGET,
     MAX_DTE_LIMIT,
@@ -24,7 +23,9 @@ from config import (
     MIN_BASE_RISK_PCT,
     MIN_DTE_LIMIT,
     SCAN_WARN_TICKERS,
+    STOCK_PRESETS,
     TICKER_OPTIONS,
+    tickers_from_playlists,
     ticker_label,
 )
 from screener import ScanConfig
@@ -34,15 +35,13 @@ from ui.copy import (
     HELP_BASE_RISK,
     HELP_CUSTOM_TICKER,
     HELP_DTE,
-    HELP_MASK_PRESET,
     HELP_MAX_COST,
     HELP_RISK_PROFILE,
     HELP_SIZING_TOGGLE,
     HELP_SKIP_EARNINGS,
+    HELP_STOCK_PRESETS,
     HELP_TICKERS,
     HELP_TOP_IDEAS,
-    MASK_PRESET_LABEL,
-    PAPER_PRESET_LABEL,
     SIDEBAR_RISK,
     SIDEBAR_SETUP,
 )
@@ -54,41 +53,79 @@ _RISK_LABELS = {
 }
 
 
+def _init_scan_ticker_state() -> None:
+    if "selected_companies" not in st.session_state:
+        st.session_state.selected_companies = list(DEFAULT_TICKERS)
+    if "_prev_playlists" not in st.session_state:
+        st.session_state._prev_playlists = []
+
+
+def _render_playlist_preloaders() -> None:
+    st.sidebar.markdown("**Smart ticker preloaders**")
+
+    chosen_playlists = st.sidebar.multiselect(
+        "Select playlists to load",
+        options=list(STOCK_PRESETS.keys()),
+        default=[],
+        key="scan_playlists",
+        help=HELP_STOCK_PRESETS,
+    )
+
+    prev = list(st.session_state.get("_prev_playlists", []))
+    if chosen_playlists != prev:
+        if chosen_playlists:
+            st.session_state.selected_companies = tickers_from_playlists(chosen_playlists)
+        st.session_state._prev_playlists = list(chosen_playlists)
+
+    if chosen_playlists:
+        loaded = tickers_from_playlists(chosen_playlists)
+        st.sidebar.caption(
+            f"Loaded **{len(loaded)}** tickers from {len(chosen_playlists)} playlist(s): "
+            f"{', '.join(loaded[:8])}{'…' if len(loaded) > 8 else ''}. "
+            "Remove any symbol below before scanning."
+        )
+
+    c1, c2 = st.sidebar.columns(2)
+    if c1.button("Default batch", help="Reset to F, SOFI, HOOD, CCL, SNAP"):
+        st.session_state.selected_companies = list(DEFAULT_TICKERS)
+        st.session_state.scan_playlists = []
+        st.session_state._prev_playlists = []
+        st.rerun()
+    if c2.button("Clear all", help="Empty the scan list"):
+        st.session_state.selected_companies = []
+        st.session_state.scan_playlists = []
+        st.session_state._prev_playlists = []
+        st.rerun()
+
+
 def render_sidebar() -> ScanConfig | None:
     st.sidebar.header(SIDEBAR_SETUP)
 
-    preset = st.sidebar.radio(
-        "Scan fuel",
-        options=[PAPER_PRESET_LABEL, MASK_PRESET_LABEL],
-        index=0,
-        help=HELP_MASK_PRESET,
-    )
-    use_foundation = preset == MASK_PRESET_LABEL
+    _init_scan_ticker_state()
+    _render_playlist_preloaders()
 
-    if use_foundation:
-        tickers = list(FOUNDATION_WATCHLIST)
-        st.sidebar.caption(
-            "**M.A.S.K. filter:** Moat · Absolute necessity · Scale · Known demand. "
-            f"Scanning **{', '.join(tickers)}** — GARCH, Kelly, and all safety gates still apply."
-        )
-    else:
-        tickers = st.sidebar.multiselect(
-            "Companies to Scan",
-            options=TICKER_OPTIONS,
-            default=DEFAULT_TICKERS,
-            format_func=ticker_label,
-            help=HELP_TICKERS,
-        )
-        st.sidebar.caption(
-            f"**Sorted best → riskiest.** Default batch (5): {', '.join(DEFAULT_TICKERS)}. "
-            "Scan 5 at a time on Cloud, then add the next batch."
-        )
+    tickers = st.sidebar.multiselect(
+        "Companies to Scan",
+        options=TICKER_OPTIONS,
+        format_func=ticker_label,
+        key="selected_companies",
+        help=HELP_TICKERS,
+    )
+    st.sidebar.caption(
+        f"Default paper batch: {', '.join(DEFAULT_TICKERS)}. "
+        f"Scan **{SCAN_WARN_TICKERS} or fewer** at a time on Cloud to avoid rate limits."
+    )
+
     custom = st.sidebar.text_input(
         "Add another symbol (optional)",
         help=HELP_CUSTOM_TICKER,
     )
     if custom.strip():
-        tickers = list(dict.fromkeys(tickers + [custom.strip().upper()]))
+        sym = custom.strip().upper()
+        if sym not in tickers:
+            tickers = list(dict.fromkeys(list(tickers) + [sym]))
+            st.session_state.selected_companies = tickers
+
     if len(tickers) > SCAN_WARN_TICKERS:
         st.sidebar.warning(
             f"**{len(tickers)} tickers** selected — Yahoo may rate-limit on Cloud. "

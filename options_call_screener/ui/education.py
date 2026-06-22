@@ -6,17 +6,19 @@ import streamlit as st
 
 
 def render_engine_guide() -> None:
-    with st.expander("How confidence is built (v5.3 — empirical Kelly)", expanded=False):
+    with st.expander("How confidence is built (v5.4 — smart playlists)", expanded=False):
         st.markdown(
             """
+**Sidebar playlists (v5.4):**
+- **6 ticker playlists** — Institutional Giants, Budget Momentum, Semis & Tech, Defensive, Index Macro, High-Risk Wildcards
+- Stack multiple playlists → loads into Companies to Scan (manual edits still allowed)
+
 **Execution reality (v5.3):**
-- **Empirical Kelly** — trailing journal win rate + avg win/loss caps Quarter-Kelly sizing
-- **Final cap** — min(theoretical BS Kelly, empirical Kelly, 3% bankroll)
+- **Empirical Kelly** — journal win rate caps Quarter-Kelly sizing after 5 closed trades
 
 **Predictive vol (v5.0):**
-- **GARCH(1,1)** — 5-day forward vol blended into BSM fair value · expand/compress regimes
+- **GARCH(1,1)** — forward vol blended into BSM fair value
 
-**System management (v4.0):**
-- Empty Room · Mirror Check · Autopsy Engine · Payoff X-Ray · Emergency brake
+**Capital preservation:** Ghost Tax · Landmine Sweeper · Mirror Check · Emergency brake · Payoff X-Ray
             """
         )

@@ -103,9 +103,23 @@ MAX_KELLY_RISK_PCT = 3.0
 EMPIRICAL_KELLY_LOOKBACK = 30
 EMPIRICAL_KELLY_MIN_TRADES = 5
 
-# M.A.S.K. Foundation watchlist — fundamental fuel for the scanner (not options math)
-# M = Moat · A = Absolute necessity · S = Scale · K = Known demand
-FOUNDATION_WATCHLIST = ["INTU", "BSX", "CRM", "CEG"]
+# Smart ticker playlists — sidebar preload groups (v5.4)
+STOCK_PRESETS: dict[str, list[str]] = {
+    "Institutional Giants": ["AAPL", "AMZN", "MSFT", "INTU", "BSX", "CRM", "CEG"],
+    "Budget Momentum": ["F", "SOFI", "HOOD", "CCL", "SNAP", "AAL", "WBD", "HPE"],
+    "Semiconductors & Tech": ["AMD", "NVDA", "TSLA", "INTC", "MRVL", "MU", "ON", "SOXL"],
+    "Defensive & Dividends": ["PFE", "KR"],
+    "Index & Sector Macro": ["SPY", "QQQ", "IWM", "XLF"],
+    "High-Risk Wildcards": ["MARA", "LFVN", "QURE", "XNDU"],
+}
+
+
+def tickers_from_playlists(playlists: list[str]) -> list[str]:
+    """Merge tickers from named presets, deduped and sorted."""
+    symbols: list[str] = []
+    for name in playlists:
+        symbols.extend(STOCK_PRESETS.get(name, []))
+    return sorted(set(symbols))
 
 # Portfolio stress grid (Module 2)
 STRESS_SPOT_SHOCKS = [-0.15, -0.10, -0.05, 0.0, 0.05, 0.10, 0.15]
