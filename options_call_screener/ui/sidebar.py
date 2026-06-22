@@ -104,6 +104,18 @@ def render_sidebar() -> ScanConfig | None:
     _init_scan_ticker_state()
     _render_playlist_preloaders()
 
+    current_tickers = list(st.session_state.get("selected_companies", []))
+    custom = st.sidebar.text_input(
+        "Add another symbol (optional)",
+        help=HELP_CUSTOM_TICKER,
+    )
+    if custom.strip():
+        sym = custom.strip().upper()
+        if sym not in current_tickers:
+            st.session_state.selected_companies = list(
+                dict.fromkeys(current_tickers + [sym])
+            )
+
     tickers = st.sidebar.multiselect(
         "Companies to Scan",
         options=TICKER_OPTIONS,
@@ -115,16 +127,6 @@ def render_sidebar() -> ScanConfig | None:
         f"Default paper batch: {', '.join(DEFAULT_TICKERS)}. "
         f"Scan **{SCAN_WARN_TICKERS} or fewer** at a time on Cloud to avoid rate limits."
     )
-
-    custom = st.sidebar.text_input(
-        "Add another symbol (optional)",
-        help=HELP_CUSTOM_TICKER,
-    )
-    if custom.strip():
-        sym = custom.strip().upper()
-        if sym not in tickers:
-            tickers = list(dict.fromkeys(list(tickers) + [sym]))
-            st.session_state.selected_companies = tickers
 
     if len(tickers) > SCAN_WARN_TICKERS:
         st.sidebar.warning(
