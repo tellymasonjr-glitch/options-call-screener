@@ -13,6 +13,7 @@ from config import (
     DEFAULT_MIN_DTE,
     DEFAULT_PICKS_PER_TICKER,
     DEFAULT_TICKERS,
+    FOUNDATION_WATCHLIST,
     MAX_BANKROLL,
     MAX_BUDGET,
     MAX_DTE_LIMIT,
@@ -33,12 +34,15 @@ from ui.copy import (
     HELP_BASE_RISK,
     HELP_CUSTOM_TICKER,
     HELP_DTE,
+    HELP_MASK_PRESET,
     HELP_MAX_COST,
     HELP_RISK_PROFILE,
     HELP_SIZING_TOGGLE,
     HELP_SKIP_EARNINGS,
     HELP_TICKERS,
     HELP_TOP_IDEAS,
+    MASK_PRESET_LABEL,
+    PAPER_PRESET_LABEL,
     SIDEBAR_RISK,
     SIDEBAR_SETUP,
 )
@@ -53,17 +57,32 @@ _RISK_LABELS = {
 def render_sidebar() -> ScanConfig | None:
     st.sidebar.header(SIDEBAR_SETUP)
 
-    tickers = st.sidebar.multiselect(
-        "Companies to Scan",
-        options=TICKER_OPTIONS,
-        default=DEFAULT_TICKERS,
-        format_func=ticker_label,
-        help=HELP_TICKERS,
+    preset = st.sidebar.radio(
+        "Scan fuel",
+        options=[PAPER_PRESET_LABEL, MASK_PRESET_LABEL],
+        index=0,
+        help=HELP_MASK_PRESET,
     )
-    st.sidebar.caption(
-        f"**Sorted best → riskiest.** Default batch (5): {', '.join(DEFAULT_TICKERS)}. "
-        "Scan 5 at a time on Cloud, then add the next batch."
-    )
+    use_foundation = preset == MASK_PRESET_LABEL
+
+    if use_foundation:
+        tickers = list(FOUNDATION_WATCHLIST)
+        st.sidebar.caption(
+            "**M.A.S.K. filter:** Moat · Absolute necessity · Scale · Known demand. "
+            f"Scanning **{', '.join(tickers)}** — GARCH, Kelly, and all safety gates still apply."
+        )
+    else:
+        tickers = st.sidebar.multiselect(
+            "Companies to Scan",
+            options=TICKER_OPTIONS,
+            default=DEFAULT_TICKERS,
+            format_func=ticker_label,
+            help=HELP_TICKERS,
+        )
+        st.sidebar.caption(
+            f"**Sorted best → riskiest.** Default batch (5): {', '.join(DEFAULT_TICKERS)}. "
+            "Scan 5 at a time on Cloud, then add the next batch."
+        )
     custom = st.sidebar.text_input(
         "Add another symbol (optional)",
         help=HELP_CUSTOM_TICKER,

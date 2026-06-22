@@ -103,6 +103,10 @@ MAX_KELLY_RISK_PCT = 3.0
 EMPIRICAL_KELLY_LOOKBACK = 30
 EMPIRICAL_KELLY_MIN_TRADES = 5
 
+# M.A.S.K. Foundation watchlist — fundamental fuel for the scanner (not options math)
+# M = Moat · A = Absolute necessity · S = Scale · K = Known demand
+FOUNDATION_WATCHLIST = ["INTU", "BSX", "CRM", "CEG"]
+
 # Portfolio stress grid (Module 2)
 STRESS_SPOT_SHOCKS = [-0.15, -0.10, -0.05, 0.0, 0.05, 0.10, 0.15]
 STRESS_VOL_SHOCKS = [-0.20, 0.0, 0.20]

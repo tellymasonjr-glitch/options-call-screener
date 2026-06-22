@@ -39,6 +39,11 @@ TICKER_REGISTRY: dict[str, dict[str, str | int]] = {
     "QQQ": {"tier": 9, "name": "Nasdaq ETF", "group": "Index / macro"},
     "IWM": {"tier": 9, "name": "Small-cap ETF", "group": "Index / macro"},
     "XLF": {"tier": 9, "name": "Financials ETF", "group": "Index / macro"},
+    # M.A.S.K. Foundation — moat, necessity, scale, known demand (Kiplinger filter)
+    "INTU": {"tier": 2, "name": "Intuit", "group": "M.A.S.K. Foundation"},
+    "BSX": {"tier": 2, "name": "Boston Scientific", "group": "M.A.S.K. Foundation"},
+    "CRM": {"tier": 2, "name": "Salesforce", "group": "M.A.S.K. Foundation"},
+    "CEG": {"tier": 2, "name": "Constellation Energy", "group": "M.A.S.K. Foundation"},
 }
 
 
