@@ -28,6 +28,6 @@ def render_scan_snapshot_bar(snapshot: dict) -> None:
             snapshot_to_json(snapshot).encode("utf-8"),
             file_name=snapshot_filename(snapshot),
             mime="application/json",
-            key=f"snapshot_dl_{snapshot.get('snapshot_id', 'latest')}",
+            key="scan_snapshot_download",
             use_container_width=True,
         )

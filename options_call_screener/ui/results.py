@@ -11,7 +11,6 @@ import streamlit as st
 from analytics.macro import MacroEnvironment
 from analytics.payoff_viz import build_payoff_chart
 from screener import TickerResult
-from ui.snapshot_bar import render_scan_snapshot_bar
 from ui.trade_journal import render_execute_button
 from ui.column_config import CONVICTION_COLUMN_CONFIG, SCALPER_COLUMN_CONFIG
 from ui.copy import (
@@ -868,22 +867,14 @@ def render_ticker_tab(result: TickerResult) -> None:
             st.write(top_scalper.get("rationale", "No explanation available."))
 
 
-def _render_scan_snapshot_bar(snapshot: dict) -> None:
-    render_scan_snapshot_bar(snapshot)
-
-
 def render_results(
     results: list[TickerResult],
     macro: MacroEnvironment | None = None,
     *,
     execution_locked: bool = False,
-    scan_snapshot: dict | None = None,
 ) -> None:
     if macro is not None:
         render_macro_environment(macro)
-
-    if scan_snapshot is not None:
-        _render_scan_snapshot_bar(scan_snapshot)
 
     ordered = _sorted_results(results)
     render_scan_summary_table(ordered)

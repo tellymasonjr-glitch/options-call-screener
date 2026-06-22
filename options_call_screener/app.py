@@ -24,7 +24,7 @@ from config import DEFAULT_BANKROLL
 from ui.snapshot_bar import render_scan_snapshot_bar
 from ui.trade_journal import render_risk_dashboard
 
-APP_VERSION = "5.4.2"
+APP_VERSION = "5.4.3"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(
@@ -82,20 +82,11 @@ def main() -> None:
         history.insert(0, snapshot)
         st.session_state.scan_snapshots = history[:20]
         render_scan_snapshot_bar(snapshot)
-        try:
-            render_results(
-                output.results,
-                macro=output.macro,
-                execution_locked=execution_locked,
-                scan_snapshot=snapshot,
-            )
-        except TypeError:
-            # Cloud cache may lag behind app.py — snapshot bar above still works.
-            render_results(
-                output.results,
-                macro=output.macro,
-                execution_locked=execution_locked,
-            )
+        render_results(
+            output.results,
+            macro=output.macro,
+            execution_locked=execution_locked,
+        )
     else:
         render_results(output, execution_locked=execution_locked)
 
