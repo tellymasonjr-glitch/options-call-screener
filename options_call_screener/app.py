@@ -11,7 +11,7 @@ if str(ROOT) not in sys.path:
 
 import streamlit as st
 
-from analytics.scan_snapshot import build_scan_snapshot, snapshot_filename, snapshot_to_json
+from analytics.scan_snapshot import build_scan_snapshot
 from data.yf_utils import is_rate_limit_error
 from screener import run_scan
 from ui.auth import check_pin
@@ -21,9 +21,10 @@ from ui.results import render_header, render_results
 from ui.sidebar import render_sidebar
 from ui.sizing_sandbox import render_sizing_sandbox
 from config import DEFAULT_BANKROLL
+from ui.snapshot_bar import render_scan_snapshot_bar
 from ui.trade_journal import render_risk_dashboard
 
-APP_VERSION = "5.4.1"
+APP_VERSION = "5.4.2"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(
@@ -80,12 +81,21 @@ def main() -> None:
         history = list(st.session_state.get("scan_snapshots", []))
         history.insert(0, snapshot)
         st.session_state.scan_snapshots = history[:20]
-        render_results(
-            output.results,
-            macro=output.macro,
-            execution_locked=execution_locked,
-            scan_snapshot=snapshot,
-        )
+        render_scan_snapshot_bar(snapshot)
+        try:
+            render_results(
+                output.results,
+                macro=output.macro,
+                execution_locked=execution_locked,
+                scan_snapshot=snapshot,
+            )
+        except TypeError:
+            # Cloud cache may lag behind app.py — snapshot bar above still works.
+            render_results(
+                output.results,
+                macro=output.macro,
+                execution_locked=execution_locked,
+            )
     else:
         render_results(output, execution_locked=execution_locked)
 

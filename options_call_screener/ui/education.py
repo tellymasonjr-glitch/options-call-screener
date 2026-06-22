@@ -6,7 +6,7 @@ import streamlit as st
 
 
 def render_engine_guide() -> None:
-    with st.expander("How confidence is built (v5.4.1 — data preservation)", expanded=False):
+    with st.expander("How confidence is built (v5.4.2 — snapshot hotfix)", expanded=False):
         st.markdown(
             """
 **Data preservation (v5.4.1):**
