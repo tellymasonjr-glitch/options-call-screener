@@ -6,19 +6,24 @@ import streamlit as st
 
 
 def render_engine_guide() -> None:
-    with st.expander("How confidence is built (v5.4 — smart playlists)", expanded=False):
+    with st.expander("How confidence is built (v5.4.1 — data preservation)", expanded=False):
         st.markdown(
             """
+**Data preservation (v5.4.1):**
+- **Journal CSV backup/restore** — download after sessions; upload to recover Empirical Kelly on Cloud
+- **Scan snapshot JSON** — top 3 picks + GARCH + macro indices per scan
+- **Ex-dividend gate** — confidence haircut when ex-date falls before expiry
+- **GARCH-aligned Monte Carlo** — tail risk uses the same forward vol as BSM pricing
+
 **Sidebar playlists (v5.4):**
-- **6 ticker playlists** — Institutional Giants, Budget Momentum, Semis & Tech, Defensive, Index Macro, High-Risk Wildcards
-- Stack multiple playlists → loads into Companies to Scan (manual edits still allowed)
+- **6 ticker playlists** — stack into Companies to Scan
 
 **Execution reality (v5.3):**
-- **Empirical Kelly** — journal win rate caps Quarter-Kelly sizing after 5 closed trades
+- **Empirical Kelly** — journal win rate caps sizing after **5 closed Autopsy trades** (guardrail: no calibration loops before N≥5)
 
 **Predictive vol (v5.0):**
 - **GARCH(1,1)** — forward vol blended into BSM fair value
 
-**Capital preservation:** Ghost Tax · Landmine Sweeper · Mirror Check · Emergency brake · Payoff X-Ray
+**Roadmap (not active yet):** v5.5 skew/VRP · v5.6 calibration curve · HMM regimes (requires journal data)
             """
         )

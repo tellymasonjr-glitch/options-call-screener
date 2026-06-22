@@ -34,6 +34,7 @@ from config import (
 )
 from data.cached_fetch import fetch_call_contracts, fetch_earnings, fetch_news, get_price_history
 from data.earnings import earnings_hard_block, expiration_near_earnings, upcoming_earnings_dates
+from analytics.dividend_gate import fetch_ex_dividend_dates
 from data.fundamentals import fetch_dividend_yield, fetch_sector
 from data.news_data import analyze_sentiment
 
@@ -75,11 +76,14 @@ def _enrich_picks(
     picks: pd.DataFrame,
     history: pd.DataFrame,
     spot: float,
-    profile: StockProfile,
+    profile: StockProfile | None,
     bankroll: float,
 ) -> pd.DataFrame:
     if picks.empty:
         return picks
+
+    eff_hv = profile.effective_hv if profile else None
+    garch_vol = profile.garch_vol_5d if profile and profile.garch_available else None
 
     rows = []
     for _, row in picks.iterrows():
@@ -92,12 +96,15 @@ def _enrich_picks(
             bankroll=bankroll,
             max_drawdown_pct=MC_MAX_DRAWDOWN_PCT,
             n_sims=MC_SIMULATIONS,
+            effective_hv=eff_hv,
+            garch_vol_annual=garch_vol,
         )
         updated = row.to_dict()
         updated["mc_p95_loss"] = mc.p95_loss_dollars
         updated["mc_median_pnl"] = mc.median_pnl_dollars
         updated["mc_prob_profit"] = mc.prob_profit
         updated["mc_passes_cap"] = mc.passes_drawdown_cap
+        updated["mc_vol_mode"] = mc.vol_mode
         rows.append(updated)
 
     return pd.DataFrame(rows)
@@ -129,6 +136,7 @@ def scan_ticker(
 
         earnings = fetch_earnings(ticker)
         earn_dates = upcoming_earnings_dates(ticker, earnings)
+        ex_div_dates = fetch_ex_dividend_dates(ticker)
         div_yield = fetch_dividend_yield(ticker)
 
         include_0dte = config.min_dte == 0
@@ -173,6 +181,7 @@ def scan_ticker(
             macro_multiplier=macro.macro_multiplier if macro else 1.0,
             div_yield=div_yield,
             earnings_dates=earn_dates,
+            ex_div_dates=ex_div_dates,
             bankroll=config.bankroll if config.bankroll > 0 else DEFAULT_BANKROLL,
         )
         if macro and macro.hard_block:

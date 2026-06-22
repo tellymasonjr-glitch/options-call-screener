@@ -23,6 +23,8 @@ from ui.copy import (
     HELP_P95_RISK,
     HELP_RISK_CAP,
     HELP_EMPIRICAL_KELLY,
+    HELP_JOURNAL_BACKUP,
+    HELP_JOURNAL_RESTORE,
     MIRROR_CHECK_INTRO,
     RISK_DASHBOARD_INTRO,
     RISK_DASHBOARD_TITLE,
@@ -353,16 +355,46 @@ def render_risk_dashboard(bankroll: float) -> bool:
 
     if not df.empty:
         with st.expander("Paper trade journal", expanded=False):
+            st.caption(HELP_JOURNAL_BACKUP)
             st.dataframe(df.tail(20), use_container_width=True, hide_index=True)
             _render_close_trade_ui(df)
-            st.download_button(
+            c1, c2 = st.columns(2)
+            c1.download_button(
                 "Download journal (CSV)",
                 df.to_csv(index=False).encode("utf-8"),
                 file_name=JOURNAL_FILENAME,
                 mime="text/csv",
                 key="download_journal",
+                use_container_width=True,
             )
+            _render_journal_restore()
+    else:
+        with st.expander("Paper trade journal", expanded=False):
+            st.caption(HELP_JOURNAL_BACKUP)
+            st.info("No trades logged yet — execute a paper trade from scan results.")
+            _render_journal_restore()
     return locked
+
+
+def _render_journal_restore() -> None:
+    """Restore journal from a backed-up CSV after Cloud redeploy."""
+    st.markdown("**Restore from backup**")
+    st.caption(HELP_JOURNAL_RESTORE)
+    uploaded = st.file_uploader(
+        "Upload journal CSV",
+        type=["csv"],
+        key="journal_restore_upload",
+        label_visibility="collapsed",
+    )
+    if uploaded is not None:
+        try:
+            restored = _normalize_journal(pd.read_csv(uploaded))
+            if st.button("Confirm restore", key="journal_restore_confirm", type="primary"):
+                save_journal(restored)
+                st.success(f"Restored {len(restored)} journal row(s). Empirical Kelly memory is back online.")
+                st.rerun()
+        except Exception as exc:
+            st.error(f"Could not read CSV: {exc}")
 
 
 def _trade_label(row: pd.Series) -> str:

@@ -6,6 +6,7 @@ from typing import Any
 
 import pandas as pd
 
+from analytics.dividend_gate import ex_div_confidence_mult, expiration_crosses_ex_div
 from analytics.calendar import calendar_multiplier
 from analytics.portfolio_stress import long_call_stress_test
 from analytics.pricing import compute_trade_metrics
@@ -99,6 +100,7 @@ def score_contracts(
     macro_multiplier: float = 1.0,
     div_yield: float = 0.0,
     earnings_dates: list | None = None,
+    ex_div_dates: list | None = None,
     bankroll: float = 10_000.0,
 ) -> pd.DataFrame:
     if not contracts:
@@ -112,6 +114,7 @@ def score_contracts(
     profile_score_base = profile.profile_score if profile else (70.0 if trend_up else 35.0)
     cal_mult, cal_note = calendar_multiplier()
     earnings_dates = earnings_dates or []
+    ex_div_dates = ex_div_dates or []
 
     rows = []
     for c in contracts:
@@ -129,6 +132,8 @@ def score_contracts(
         rank = iv_rank(iv, iv_samples + [iv])
         near_earn = _contract_near_earnings(str(c.get("expiration", "")), earnings_dates)
         earn_nogo = earnings_hard_block(str(c.get("expiration", "")), earnings_dates)
+        crosses_ex_div = expiration_crosses_ex_div(str(c.get("expiration", "")), ex_div_dates)
+        ex_div_mult, ex_div_note = ex_div_confidence_mult(crosses_ex_div)
         metrics = compute_trade_metrics(
             spot, strike, ask, dte, iv, hv, theta, div_yield=div_yield
         )
@@ -188,6 +193,9 @@ def score_contracts(
                 "stress_worst_spot": stress.worst_spot_shock,
                 "stress_worst_vol": stress.worst_vol_shock,
                 "earnings_nogo": earn_nogo,
+                "ex_div_crossing": crosses_ex_div,
+                "ex_div_note": ex_div_note,
+                "ex_div_mult": ex_div_mult,
                 "empty_room": empty_room,
                 "garch_vol_5d": profile.garch_vol_5d if profile else None,
                 "garch_hv_ratio": profile.garch_hv_ratio if profile else None,
@@ -251,6 +259,7 @@ def score_contracts(
         * spread_mult
         * tide_mult
         * garch_mult
+        * df["ex_div_mult"]
     )
     df["display_confidence"] = base.clip(0, 100)
     df["spread_mult"] = spread_mult

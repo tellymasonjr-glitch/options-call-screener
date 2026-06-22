@@ -10,6 +10,7 @@ import streamlit as st
 
 from analytics.macro import MacroEnvironment
 from analytics.payoff_viz import build_payoff_chart
+from analytics.scan_snapshot import snapshot_filename, snapshot_to_json
 from screener import TickerResult
 from ui.trade_journal import render_execute_button
 from ui.column_config import CONVICTION_COLUMN_CONFIG, SCALPER_COLUMN_CONFIG
@@ -48,6 +49,7 @@ from ui.copy import (
     SCAN_SUMMARY_TITLE,
     DEEP_DIVE_INTRO,
     DEEP_DIVE_TITLE,
+    HELP_SCAN_SNAPSHOT,
 )
 
 _TAG_LABELS = {
@@ -867,14 +869,43 @@ def render_ticker_tab(result: TickerResult) -> None:
             st.write(top_scalper.get("rationale", "No explanation available."))
 
 
+def _render_scan_snapshot_bar(snapshot: dict) -> None:
+    """Download bar for timestamped scan snapshot JSON (Cloud persistence aid)."""
+    top = snapshot.get("top_picks") or []
+    summary = ", ".join(
+        f"{p.get('ticker')} ${p.get('strike', 0):g} ({p.get('conviction_score', 0):.0f})"
+        for p in top[:3]
+    )
+    c1, c2 = st.columns([3, 1])
+    with c1:
+        st.caption(
+            f"**Scan snapshot** `{snapshot.get('snapshot_id', '')}` — "
+            f"top picks: {summary or 'none'}. "
+            + HELP_SCAN_SNAPSHOT
+        )
+    with c2:
+        st.download_button(
+            "Download snapshot (JSON)",
+            snapshot_to_json(snapshot).encode("utf-8"),
+            file_name=snapshot_filename(snapshot),
+            mime="application/json",
+            key=f"snapshot_dl_{snapshot.get('snapshot_id', 'latest')}",
+            use_container_width=True,
+        )
+
+
 def render_results(
     results: list[TickerResult],
     macro: MacroEnvironment | None = None,
     *,
     execution_locked: bool = False,
+    scan_snapshot: dict | None = None,
 ) -> None:
     if macro is not None:
         render_macro_environment(macro)
+
+    if scan_snapshot is not None:
+        _render_scan_snapshot_bar(scan_snapshot)
 
     ordered = _sorted_results(results)
     render_scan_summary_table(ordered)

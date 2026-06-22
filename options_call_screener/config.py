@@ -103,6 +103,10 @@ MAX_KELLY_RISK_PCT = 3.0
 EMPIRICAL_KELLY_LOOKBACK = 30
 EMPIRICAL_KELLY_MIN_TRADES = 5
 
+# Ex-dividend gate — long-call confidence haircut (v5.4.1)
+EXDIV_LOOKAHEAD_DAYS = 120
+EXDIV_CONFIDENCE_MULT = 0.88
+
 # Smart ticker playlists — sidebar preload groups (v5.4)
 STOCK_PRESETS: dict[str, list[str]] = {
     "Institutional Giants": ["AAPL", "AMZN", "MSFT", "INTU", "BSX", "CRM", "CEG"],

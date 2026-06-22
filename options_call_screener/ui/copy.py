@@ -31,6 +31,17 @@ HELP_STOCK_PRESETS = (
     "to stack them (e.g. Institutional Giants + Index Macro). "
     "Why it matters: picks the pond you fish in — GARCH, Kelly, and all gates still decide each trade."
 )
+HELP_JOURNAL_BACKUP = (
+    "Streamlit Cloud wipes local files on redeploy. Download your journal after every session "
+    "so Empirical Kelly keeps your closed-trade history."
+)
+HELP_JOURNAL_RESTORE = (
+    "Upload a previously downloaded my_trades.csv to restore journal state after a redeploy."
+)
+HELP_SCAN_SNAPSHOT = (
+    "Save this JSON after each scan — top picks, GARCH by ticker, and SPY/QQQ/IWM context "
+    "for later calibration (v5.6)."
+)
 HELP_CUSTOM_TICKER = (
     "Type one extra symbol and it will be added to today's scan. "
     "Why it matters: stick to names with active options volume so Ghost Tax and spread gates stay honest."

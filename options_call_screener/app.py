@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 
 import streamlit as st
 
+from analytics.scan_snapshot import build_scan_snapshot, snapshot_filename, snapshot_to_json
 from data.yf_utils import is_rate_limit_error
 from screener import run_scan
 from ui.auth import check_pin
@@ -22,7 +23,7 @@ from ui.sizing_sandbox import render_sizing_sandbox
 from config import DEFAULT_BANKROLL
 from ui.trade_journal import render_risk_dashboard
 
-APP_VERSION = "5.4.0"
+APP_VERSION = "5.4.1"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(
@@ -70,7 +71,21 @@ def main() -> None:
     progress.progress(1.0, text="Done!")
     progress.empty()
     if hasattr(output, "results"):
-        render_results(output.results, macro=output.macro, execution_locked=execution_locked)
+        snapshot = build_scan_snapshot(
+            output,
+            app_version=APP_VERSION,
+            tickers_requested=config.tickers,
+        )
+        st.session_state.latest_scan_snapshot = snapshot
+        history = list(st.session_state.get("scan_snapshots", []))
+        history.insert(0, snapshot)
+        st.session_state.scan_snapshots = history[:20]
+        render_results(
+            output.results,
+            macro=output.macro,
+            execution_locked=execution_locked,
+            scan_snapshot=snapshot,
+        )
     else:
         render_results(output, execution_locked=execution_locked)
 
