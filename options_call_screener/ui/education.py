@@ -6,9 +6,11 @@ import streamlit as st
 
 
 def render_engine_guide() -> None:
-    with st.expander("How confidence is built (v5.4.5 — variance attribution)", expanded=False):
+    with st.expander("How confidence is built (v5.4.6 — persistent results)", expanded=False):
         st.markdown(
             """
+**Stability (v5.4.6):** scan results persist when you change the Deep Dive ticker or log a trade — no more disappearing dashboard.
+
 **Autopsy upgrade (v5.4.5):**
 - **Variance attribution** — on close, compares implied vol paid vs realized vol over the hold
 - Read-only: tells you if a loss was direction or volatility overpay (Vega drag vs tailwind)
