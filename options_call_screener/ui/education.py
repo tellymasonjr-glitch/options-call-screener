@@ -6,9 +6,13 @@ import streamlit as st
 
 
 def render_engine_guide() -> None:
-    with st.expander("How confidence is built (v5.4.4 — sidebar state hotfix)", expanded=False):
+    with st.expander("How confidence is built (v5.4.5 — variance attribution)", expanded=False):
         st.markdown(
             """
+**Autopsy upgrade (v5.4.5):**
+- **Variance attribution** — on close, compares implied vol paid vs realized vol over the hold
+- Read-only: tells you if a loss was direction or volatility overpay (Vega drag vs tailwind)
+
 **Data preservation (v5.4.1):**
 - **Journal CSV backup/restore** — download after sessions; upload to recover Empirical Kelly on Cloud
 - **Scan snapshot JSON** — top 3 picks + GARCH + macro indices per scan

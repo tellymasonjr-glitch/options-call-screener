@@ -9,6 +9,7 @@ import streamlit as st
 
 from analytics.empirical_kelly import compute_empirical_kelly, get_journal_for_kelly
 from analytics.pnl_attribution import attribute_long_call_pnl
+from analytics.variance_attribution import compute_variance_attribution
 from analytics.portfolio_exposure import (
     beta_weighted_spy_shares,
     exposure_warning,
@@ -61,6 +62,10 @@ JOURNAL_COLUMNS = [
     "attr_vega",
     "attr_residual",
     "autopsy_note",
+    "implied_vol_hold",
+    "realized_vol_hold",
+    "vol_spread",
+    "variance_verdict",
 ]
 
 _JOURNAL_DEFAULTS: dict[str, object] = {
@@ -81,6 +86,10 @@ _JOURNAL_DEFAULTS: dict[str, object] = {
     "attr_vega": 0.0,
     "attr_residual": 0.0,
     "autopsy_note": "",
+    "implied_vol_hold": 0.0,
+    "realized_vol_hold": 0.0,
+    "vol_spread": 0.0,
+    "variance_verdict": "N/A",
 }
 
 
@@ -216,10 +225,33 @@ def close_paper_trade(index: int) -> tuple[bool, str]:
     df.at[index, "attr_vega"] = attr.vega_pnl
     df.at[index, "attr_residual"] = attr.residual_pnl
     df.at[index, "autopsy_note"] = attr.summary_line()
+
+    # Variance attribution (v5.4.5) — read-only telemetry, must never block a close.
+    df.at[index, "implied_vol_hold"] = float(row.get("iv_at_entry") or 0.0)
+    df.at[index, "realized_vol_hold"] = 0.0
+    df.at[index, "vol_spread"] = 0.0
+    df.at[index, "variance_verdict"] = "N/A"
+    variance_line = ""
+    try:
+        va = compute_variance_attribution(
+            ticker,
+            row.get("logged_at"),
+            df.at[index, "closed_at"],
+            float(row.get("iv_at_entry") or 0.0),
+        )
+        df.at[index, "implied_vol_hold"] = va.implied_vol
+        df.at[index, "realized_vol_hold"] = va.realized_vol
+        df.at[index, "vol_spread"] = va.vol_spread_pct
+        df.at[index, "variance_verdict"] = va.verdict
+        if va.sufficient:
+            variance_line = f" Volatility: {va.verdict}"
+    except Exception:
+        pass
+
     save_journal(df)
     return True, (
         f"Closed {ticker} ${strike:g} — P&L ${attr.actual_pnl:+,.0f} over {attr.days_held}d. "
-        f"{attr.summary_line()}"
+        f"{attr.summary_line()}{variance_line}"
     )
 
 
