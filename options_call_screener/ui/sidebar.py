@@ -56,27 +56,56 @@ _RISK_LABELS = {
 def _init_scan_ticker_state() -> None:
     if "selected_companies" not in st.session_state:
         st.session_state.selected_companies = list(DEFAULT_TICKERS)
+    if "scan_playlists" not in st.session_state:
+        st.session_state.scan_playlists = []
     if "_prev_playlists" not in st.session_state:
         st.session_state._prev_playlists = []
+
+
+def _apply_pending_playlist_reset() -> None:
+    """Apply reset before playlist widgets mount (Streamlit widget-state safe)."""
+    action = st.session_state.pop("_playlist_reset", None)
+    if action == "default":
+        st.session_state.selected_companies = list(DEFAULT_TICKERS)
+        st.session_state.scan_playlists = []
+        st.session_state._prev_playlists = []
+    elif action == "clear":
+        st.session_state.selected_companies = []
+        st.session_state.scan_playlists = []
+        st.session_state._prev_playlists = []
+
+
+def _on_playlists_changed() -> None:
+    """Callback — may mutate selected_companies while scan_playlists updates."""
+    chosen = list(st.session_state.get("scan_playlists") or [])
+    if chosen:
+        st.session_state.selected_companies = tickers_from_playlists(chosen)
+    st.session_state._prev_playlists = list(chosen)
 
 
 def _render_playlist_preloaders() -> None:
     st.sidebar.markdown("**Smart ticker preloaders**")
 
-    chosen_playlists = st.sidebar.multiselect(
+    # Reset buttons queue an action; state is applied on the next rerun before widgets draw.
+    c1, c2 = st.sidebar.columns(2)
+    if c1.button("Default batch", help="Reset to F, SOFI, HOOD, CCL, SNAP"):
+        st.session_state._playlist_reset = "default"
+        st.rerun()
+    if c2.button("Clear all", help="Empty the scan list"):
+        st.session_state._playlist_reset = "clear"
+        st.rerun()
+
+    _apply_pending_playlist_reset()
+
+    st.sidebar.multiselect(
         "Select playlists to load",
         options=list(STOCK_PRESETS.keys()),
-        default=[],
         key="scan_playlists",
+        on_change=_on_playlists_changed,
         help=HELP_STOCK_PRESETS,
     )
 
-    prev = list(st.session_state.get("_prev_playlists", []))
-    if chosen_playlists != prev:
-        if chosen_playlists:
-            st.session_state.selected_companies = tickers_from_playlists(chosen_playlists)
-        st.session_state._prev_playlists = list(chosen_playlists)
-
+    chosen_playlists = list(st.session_state.get("scan_playlists") or [])
     if chosen_playlists:
         loaded = tickers_from_playlists(chosen_playlists)
         st.sidebar.caption(
@@ -84,18 +113,6 @@ def _render_playlist_preloaders() -> None:
             f"{', '.join(loaded[:8])}{'…' if len(loaded) > 8 else ''}. "
             "Remove any symbol below before scanning."
         )
-
-    c1, c2 = st.sidebar.columns(2)
-    if c1.button("Default batch", help="Reset to F, SOFI, HOOD, CCL, SNAP"):
-        st.session_state.selected_companies = list(DEFAULT_TICKERS)
-        st.session_state.scan_playlists = []
-        st.session_state._prev_playlists = []
-        st.rerun()
-    if c2.button("Clear all", help="Empty the scan list"):
-        st.session_state.selected_companies = []
-        st.session_state.scan_playlists = []
-        st.session_state._prev_playlists = []
-        st.rerun()
 
 
 def render_sidebar() -> ScanConfig | None:
