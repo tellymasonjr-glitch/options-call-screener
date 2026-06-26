@@ -82,31 +82,68 @@ def tag_scalper_picks(df: pd.DataFrame, picks: int) -> pd.DataFrame:
 
 
 def build_scalper_rationale(row: pd.Series, spot: float, profile: StockProfile | None) -> str:
+    strike = float(row["strike"])
+    ask = float(row.get("ask", 0) or 0)
+    cost = ask * 100
+    gap = strike - spot
+
+    if gap > 0:
+        move_need = (
+            f"The stock sits at **${spot:.2f}** and would need to climb about **${gap:.2f}** "
+            f"to reach the **${strike:.0f}** strike — and typically a bit more for the option "
+            f"to be worth what you paid."
+        )
+    else:
+        move_need = (
+            f"The stock is at **${spot:.2f}**, at or above the **${strike:.0f}** strike — "
+            f"a helpful start, but there are only **hours left** for the bet to pay off."
+        )
+
     vol_note = ""
     if profile and profile.volume_ratio >= 1.25:
-        vol_note = "Trading volume is higher than usual today — more action, but also more whipsaw. "
+        vol_note = (
+            "**Activity today:** Trading volume is **higher than usual**. That often means "
+            "sharper moves — good if you are right, painful if the stock stalls or reverses."
+        )
     elif profile:
-        vol_note = "Trading volume is about normal today. "
+        vol_note = (
+            "**Activity today:** Volume is about **normal**. Moves may be slower unless "
+            "headlines or the broad market heat up."
+        )
 
     spread = float(row.get("spread_pct", 0) or 0)
-    spread_note = ""
     if spread >= 0.15:
-        spread_note = "The buy/sell gap is wide — getting in and out may cost you extra. "
+        spread_note = (
+            "**Getting in and out:** The gap between buyers and sellers is **wide** "
+            f"(~{spread:.0%} of the price). You may give up meaningful money on entry and exit."
+        )
     elif spread >= 0.08:
-        spread_note = "The buy/sell gap is a bit wide — watch your entry price. "
+        spread_note = (
+            "**Getting in and out:** The bid/ask gap is **moderately wide** — use a limit order "
+            "and do not chase."
+        )
+    else:
+        spread_note = "**Getting in and out:** Spreads look **reasonable** for a same-day contract."
 
     score = float(row.get("scalper_score", 0) or 0)
     if score >= 70:
-        verdict = "This is one of the stronger same-day setups in the scan."
+        verdict = (
+            "This ranks among the **stronger same-day setups** in the scan — but same-day options "
+            "are still unforgiving. Have an exit plan before you enter."
+        )
     elif score >= 50:
-        verdict = "Decent for a quick same-day trade, but only if you know how to exit fast."
+        verdict = (
+            "**Decent for a quick trade** if you understand that you can lose the full "
+            f"${cost:,.0f} per contract quickly. Not a hold-and-hope idea."
+        )
     else:
-        verdict = "Lower ranked same-day idea — extra caution."
+        verdict = "**Lower ranked** same-day idea — extra caution; consider paper-trading first."
 
     return (
-        f"**Same-day trade on {row['ticker']}:** You are betting the stock moves up **before the close today**. "
-        f"Stock price now **${spot:.2f}**, target strike **${row['strike']:.0f}**. "
-        f"{vol_note}{spread_note}"
-        f"**Why it ranked here:** Lots of trading activity and sensitivity to price moves today — "
-        f"not a long-term \"investment\" pick. **Score {score:.0f}/100.** {verdict}"
+        f"**Same-day trade on {row['ticker']}:** You are buying a call that expires **today**. "
+        f"You pay **${ask:.2f}/share** (**${cost:,.0f} per contract**). {move_need}\n\n"
+        f"{vol_note}\n\n{spread_note}\n\n"
+        f"**Why it ranked here:** Same-day picks are scored on **how actively the contract "
+        f"trades** and **how sensitive it is to price moves today** — not on long-term trend or "
+        f"headlines (those barely matter intraday). **Score {score:.0f}/100.** {verdict}"
     )

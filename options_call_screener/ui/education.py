@@ -6,12 +6,12 @@ import streamlit as st
 
 
 def render_engine_guide() -> None:
-    with st.expander("How confidence is built (v5.5.1 — plain-English rationales)", expanded=False):
+    with st.expander("How confidence is built (v5.5.2 — in-depth rationales)", expanded=False):
         st.markdown(
             """
-**List rationales (v5.5.1):**
-- **ℹ️ hover + "Why this pick?"** — written for non-traders (no jargon)
-- Same engine as Deep Dive — display only, no scoring changes
+**List rationales (v5.5.2):**
+- **ℹ️ hover** — medium summary (price, payoff, market, cautions)
+- **"Why this pick?"** — full multi-section breakdown for non-traders
 
 **Stability (v5.4.7):** playlist Default/Clear buttons no longer crash on widget-state lock.
 
