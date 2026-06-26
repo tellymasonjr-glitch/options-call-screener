@@ -109,7 +109,7 @@ EXDIV_CONFIDENCE_MULT = 0.88
 
 # Smart ticker playlists — sidebar preload groups (v5.4)
 STOCK_PRESETS: dict[str, list[str]] = {
-    "Institutional Giants": ["AAPL", "AMZN", "MSFT", "INTU", "BSX", "CRM", "CEG"],
+    "Institutional Giants": ["AAPL", "AMZN", "MSFT", "IBM", "INTU", "BSX", "CRM", "CEG"],
     "Budget Momentum": ["F", "SOFI", "HOOD", "CCL", "SNAP", "AAL", "WBD", "HPE"],
     "Semiconductors & Tech": ["AMD", "NVDA", "TSLA", "INTC", "MRVL", "MU", "ON", "SOXL"],
     "Defensive & Dividends": ["PFE", "KR"],

@@ -40,6 +40,7 @@ TICKER_REGISTRY: dict[str, dict[str, str | int]] = {
     "IWM": {"tier": 9, "name": "Small-cap ETF", "group": "Index / macro"},
     "XLF": {"tier": 9, "name": "Financials ETF", "group": "Index / macro"},
     # Institutional / high-conviction (formerly M.A.S.K. picks)
+    "IBM": {"tier": 2, "name": "IBM", "group": "Institutional Giants"},
     "INTU": {"tier": 2, "name": "Intuit", "group": "Institutional Giants"},
     "BSX": {"tier": 2, "name": "Boston Scientific", "group": "Institutional Giants"},
     "CRM": {"tier": 2, "name": "Salesforce", "group": "Institutional Giants"},
