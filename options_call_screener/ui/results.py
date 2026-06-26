@@ -10,6 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from analytics.macro import MacroEnvironment
+from analytics.plain_rationale import build_quick_list_tooltip
 from analytics.payoff_viz import build_payoff_chart
 from screener import TickerResult
 from ui.trade_journal import render_execute_button
@@ -235,44 +236,15 @@ def _strip_markdown(text: str) -> str:
 
 def _fallback_pick_tooltip(row: pd.Series) -> str:
     """One-paragraph summary when full rationale text is unavailable."""
-    bits: list[str] = []
-    score = _pick_confidence(row)
-    if score is not None:
-        bits.append(f"Confidence {score:.0f}/100.")
-    ev = row.get("ev")
-    if ev is not None and not pd.isna(ev):
-        ev_f = float(ev)
-        if ev_f >= 0:
-            bits.append(f"Expected return +${ev_f:,.0f}/contract (model fair value exceeds ask).")
-        else:
-            bits.append(
-                f"Expected return ${ev_f:,.0f}/contract (premium above model fair value — lower-edge)."
-            )
-    regime = row.get("garch_regime")
-    if regime and str(regime) not in ("", "neutral", "nan"):
-        bits.append(f"GARCH regime: {regime}.")
-    ex_note = row.get("ex_div_note")
-    if ex_note and str(ex_note).strip():
-        bits.append(str(ex_note).strip())
-    mc = row.get("mc_p95_loss")
-    if mc is not None and not pd.isna(mc):
-        bits.append(f"Monte Carlo P95 worst-case ${float(mc):,.0f}.")
-    if row.get("mc_passes_cap") is False:
-        bits.append("Monte Carlo failed the 5% bankroll tail-risk cap.")
-    warnings = row.get("risk_warnings")
-    if warnings and str(warnings).strip():
-        bits.append(str(warnings).replace("|", " "))
-    tag = row.get("tag")
-    if tag and str(tag).startswith("0dte"):
-        bits.append("Same-day scalp — ranked on volume/gamma, not long-term conviction EV.")
-    if not bits:
-        return "Open Deep Dive for this ticker to see the full health check and payoff chart."
-    return " ".join(bits)
+    return build_quick_list_tooltip(row)
 
 
 def _pick_rationale_tooltip(row: pd.Series) -> str:
     raw = row.get("rationale")
     if raw is not None and str(raw).strip():
+        quick = build_quick_list_tooltip(row)
+        if quick:
+            return quick
         plain = _strip_markdown(str(raw))
         if len(plain) > 480:
             return plain[:477] + "…"

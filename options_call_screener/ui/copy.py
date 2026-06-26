@@ -255,9 +255,8 @@ WHY_QUICK_LIST_EV = (
     "a 90-score on a $5 contract beats a 95-score that only pays $0.50."
 )
 WHY_LIST_RATIONALE = (
-    "Plain-English breakdown of why this contract ranked here — math edge, stock health, "
-    "market weather, GARCH regime, and any defensive haircuts. "
-    "Hover the ℹ️ icon for a quick summary."
+    "Plain-English explanation — no trading jargon required. "
+    "Hover the ℹ️ for a quick summary, or read the full breakdown here."
 )
 SCAN_SUMMARY_TITLE = "Scan Summary — All Tickers"
 SCAN_SUMMARY_INTRO = (

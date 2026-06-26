@@ -6,12 +6,12 @@ import streamlit as st
 
 
 def render_engine_guide() -> None:
-    with st.expander("How confidence is built (v5.5 — list rationales)", expanded=False):
+    with st.expander("How confidence is built (v5.5.1 — plain-English rationales)", expanded=False):
         st.markdown(
             """
-**List rationales (v5.5):**
-- **ℹ️ hover + "Why this pick?"** on every row in Today's Best Ideas and Same-Day Scalp lists
-- Same plain-English engine as Deep Dive — display only, no scoring changes
+**List rationales (v5.5.1):**
+- **ℹ️ hover + "Why this pick?"** — written for non-traders (no jargon)
+- Same engine as Deep Dive — display only, no scoring changes
 
 **Stability (v5.4.7):** playlist Default/Clear buttons no longer crash on widget-state lock.
 

@@ -83,13 +83,30 @@ def tag_scalper_picks(df: pd.DataFrame, picks: int) -> pd.DataFrame:
 
 def build_scalper_rationale(row: pd.Series, spot: float, profile: StockProfile | None) -> str:
     vol_note = ""
-    if profile:
-        vol_note = f"Stock volume {profile.volume_ratio:.1f}x 20d avg. "
+    if profile and profile.volume_ratio >= 1.25:
+        vol_note = "Trading volume is higher than usual today — more action, but also more whipsaw. "
+    elif profile:
+        vol_note = "Trading volume is about normal today. "
+
+    spread = float(row.get("spread_pct", 0) or 0)
+    spread_note = ""
+    if spread >= 0.15:
+        spread_note = "The buy/sell gap is wide — getting in and out may cost you extra. "
+    elif spread >= 0.08:
+        spread_note = "The buy/sell gap is a bit wide — watch your entry price. "
+
+    score = float(row.get("scalper_score", 0) or 0)
+    if score >= 70:
+        verdict = "This is one of the stronger same-day setups in the scan."
+    elif score >= 50:
+        verdict = "Decent for a quick same-day trade, but only if you know how to exit fast."
+    else:
+        verdict = "Lower ranked same-day idea — extra caution."
+
     return (
-        f"0 DTE scalper: {row['ticker']} ${row['strike']:.0f} call exp {row['expiration']}. "
-        f"Spot ${spot:.2f}, Δ {row.get('delta', 0):.2f}, Γ {row.get('gamma', 0):.3f}. "
-        f"Volume {int(row.get('volume', 0))}, spread {row.get('spread_pct', 0):.1%}, "
-        f"IV/HV {row.get('iv_hv_ratio', 1):.2f}. {vol_note}"
-        f"Scalper score {row.get('scalper_score', 0):.1f}/100 — "
-        f"not ranked by conviction EV (SMA/sentiment have little effect intraday)."
+        f"**Same-day trade on {row['ticker']}:** You are betting the stock moves up **before the close today**. "
+        f"Stock price now **${spot:.2f}**, target strike **${row['strike']:.0f}**. "
+        f"{vol_note}{spread_note}"
+        f"**Why it ranked here:** Lots of trading activity and sensitivity to price moves today — "
+        f"not a long-term \"investment\" pick. **Score {score:.0f}/100.** {verdict}"
     )
