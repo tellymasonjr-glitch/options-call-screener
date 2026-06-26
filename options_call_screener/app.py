@@ -24,7 +24,7 @@ from config import DEFAULT_BANKROLL
 from ui.snapshot_bar import render_scan_snapshot_bar
 from ui.trade_journal import render_risk_dashboard
 
-APP_VERSION = "5.4.7"
+APP_VERSION = "5.5.0"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(

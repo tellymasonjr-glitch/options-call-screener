@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import plotly.express as px
@@ -40,6 +41,7 @@ from ui.copy import (
     WHY_MC,
     WHY_PAYOFF_XRAY,
     WHY_QUICK_LIST_EV,
+    WHY_LIST_RATIONALE,
     WHY_SCALPER,
     WHY_SCATTER,
     WHY_STRESS,
@@ -225,6 +227,100 @@ def _format_pick_line(row: pd.Series, *, suffix: str = "", numbered: bool = True
     return line
 
 
+def _strip_markdown(text: str) -> str:
+    plain = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    plain = re.sub(r"\s+", " ", plain.replace("\n\n", " ")).strip()
+    return plain
+
+
+def _fallback_pick_tooltip(row: pd.Series) -> str:
+    """One-paragraph summary when full rationale text is unavailable."""
+    bits: list[str] = []
+    score = _pick_confidence(row)
+    if score is not None:
+        bits.append(f"Confidence {score:.0f}/100.")
+    ev = row.get("ev")
+    if ev is not None and not pd.isna(ev):
+        ev_f = float(ev)
+        if ev_f >= 0:
+            bits.append(f"Expected return +${ev_f:,.0f}/contract (model fair value exceeds ask).")
+        else:
+            bits.append(
+                f"Expected return ${ev_f:,.0f}/contract (premium above model fair value — lower-edge)."
+            )
+    regime = row.get("garch_regime")
+    if regime and str(regime) not in ("", "neutral", "nan"):
+        bits.append(f"GARCH regime: {regime}.")
+    ex_note = row.get("ex_div_note")
+    if ex_note and str(ex_note).strip():
+        bits.append(str(ex_note).strip())
+    mc = row.get("mc_p95_loss")
+    if mc is not None and not pd.isna(mc):
+        bits.append(f"Monte Carlo P95 worst-case ${float(mc):,.0f}.")
+    if row.get("mc_passes_cap") is False:
+        bits.append("Monte Carlo failed the 5% bankroll tail-risk cap.")
+    warnings = row.get("risk_warnings")
+    if warnings and str(warnings).strip():
+        bits.append(str(warnings).replace("|", " "))
+    tag = row.get("tag")
+    if tag and str(tag).startswith("0dte"):
+        bits.append("Same-day scalp — ranked on volume/gamma, not long-term conviction EV.")
+    if not bits:
+        return "Open Deep Dive for this ticker to see the full health check and payoff chart."
+    return " ".join(bits)
+
+
+def _pick_rationale_tooltip(row: pd.Series) -> str:
+    raw = row.get("rationale")
+    if raw is not None and str(raw).strip():
+        plain = _strip_markdown(str(raw))
+        if len(plain) > 480:
+            return plain[:477] + "…"
+        return plain
+    return _fallback_pick_tooltip(row)
+
+
+def _pick_rationale_body(row: pd.Series) -> str:
+    raw = row.get("rationale")
+    if raw is not None and str(raw).strip():
+        return str(raw).strip()
+    return _fallback_pick_tooltip(row)
+
+
+def _render_pick_row(
+    row: pd.Series,
+    *,
+    suffix: str = "",
+    row_key: str,
+    show_execute: bool,
+    spot: float,
+    beta: float,
+    execution_locked: bool,
+) -> None:
+    """One quick-list row with hover rationale + expander."""
+    tooltip = _pick_rationale_tooltip(row)
+    line_col, info_col = st.columns([0.94, 0.06])
+    with line_col:
+        st.markdown(_format_pick_line(row, suffix=suffix))
+    with info_col:
+        st.markdown("ℹ️", help=tooltip)
+
+    with st.expander("Why this pick?", expanded=False, key=f"rationale_{row_key}"):
+        st.caption(WHY_LIST_RATIONALE)
+        st.markdown(_pick_rationale_body(row))
+
+    if show_execute:
+        ticker = str(row.get("ticker", ""))
+        render_execute_button(
+            row,
+            spot,
+            sector=str(row.get("sector", "")),
+            beta=beta,
+            button_key=f"paper_exec_{row_key}",
+            locked=execution_locked,
+        )
+
+
 def render_simple_pick_list(
     ranked: pd.DataFrame,
     *,
@@ -260,16 +356,16 @@ def render_simple_pick_list(
         score = _pick_confidence(row)
         if score is not None and score < 1:
             continue
-        st.markdown(_format_pick_line(row, suffix=suffix))
         ticker = str(row.get("ticker", ""))
-        spot = spots.get(ticker, 0.0)
-        render_execute_button(
+        row_key = f"{ticker}_{row.get('strike')}_{row.get('expiration')}_{shown}"
+        _render_pick_row(
             row,
-            spot,
-            sector=str(row.get("sector", "")),
+            suffix=suffix,
+            row_key=row_key,
+            show_execute=results is not None,
+            spot=spots.get(ticker, 0.0),
             beta=betas.get(ticker, float(row.get("beta") or 1.0)),
-            button_key=f"paper_exec_{ticker}_{row.get('strike')}_{row.get('expiration')}_{shown}",
-            locked=execution_locked,
+            execution_locked=execution_locked,
         )
         shown += 1
 
@@ -288,7 +384,16 @@ def render_simple_pick_list(
                 for i, (_, row) in enumerate(demoted.head(8).iterrows(), start=1):
                     row = row.copy()
                     row["rank"] = i
-                    st.markdown(_format_pick_line(row, suffix=suffix))
+                    row_key = f"demoted_{row.get('ticker')}_{row.get('strike')}_{row.get('expiration')}_{i}"
+                    _render_pick_row(
+                        row,
+                        suffix=suffix,
+                        row_key=row_key,
+                        show_execute=False,
+                        spot=spots.get(str(row.get("ticker", "")), 0.0),
+                        beta=betas.get(str(row.get("ticker", "")), 1.0),
+                        execution_locked=execution_locked,
+                    )
 
 
 def render_bottom_results(
@@ -343,6 +448,8 @@ def render_bottom_results(
             scalper_ranked,
             title="Same-Day Scalp List",
             suffix=" (today only)",
+            results=results,
+            execution_locked=execution_locked,
         )
 
 

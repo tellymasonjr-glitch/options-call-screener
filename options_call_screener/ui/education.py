@@ -6,9 +6,13 @@ import streamlit as st
 
 
 def render_engine_guide() -> None:
-    with st.expander("How confidence is built (v5.4.6 — persistent results)", expanded=False):
+    with st.expander("How confidence is built (v5.5 — list rationales)", expanded=False):
         st.markdown(
             """
+**List rationales (v5.5):**
+- **ℹ️ hover + "Why this pick?"** on every row in Today's Best Ideas and Same-Day Scalp lists
+- Same plain-English engine as Deep Dive — display only, no scoring changes
+
 **Stability (v5.4.7):** playlist Default/Clear buttons no longer crash on widget-state lock.
 
 **Stability (v5.4.6):** scan results persist when you change the Deep Dive ticker or log a trade — no more disappearing dashboard.
@@ -32,6 +36,6 @@ def render_engine_guide() -> None:
 **Predictive vol (v5.0):**
 - **GARCH(1,1)** — forward vol blended into BSM fair value
 
-**Roadmap (not active yet):** v5.5 skew/VRP · v5.6 calibration curve · HMM regimes (requires journal data)
+**Roadmap (not active yet):** skew/VRP module · v5.6 calibration curve · HMM regimes (requires journal data)
             """
         )

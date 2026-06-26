@@ -254,6 +254,11 @@ WHY_QUICK_LIST_EV = (
     "Why it matters: confidence tells you quality; expected return tells you magnitude — "
     "a 90-score on a $5 contract beats a 95-score that only pays $0.50."
 )
+WHY_LIST_RATIONALE = (
+    "Plain-English breakdown of why this contract ranked here — math edge, stock health, "
+    "market weather, GARCH regime, and any defensive haircuts. "
+    "Hover the ℹ️ icon for a quick summary."
+)
 SCAN_SUMMARY_TITLE = "Scan Summary — All Tickers"
 SCAN_SUMMARY_INTRO = (
     "Why we show this: one sortable table replaces squished metric columns. "
