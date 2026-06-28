@@ -7,7 +7,6 @@ from dataclasses import dataclass
 import pandas as pd
 
 from config import SPY_TREND_MULT, VIX_CALM_MAX, VIX_ELEVATED_MAX
-from data.cached_fetch import get_spot_price
 
 
 @dataclass(frozen=True)
@@ -35,6 +34,8 @@ def _vix_multiplier(vix: float) -> tuple[float, bool]:
 
 def build_macro_environment(spy_history: pd.DataFrame) -> MacroEnvironment:
     """Fetch VIX once and derive SPY trend from history already loaded for the scan."""
+    from data.cached_fetch import get_spot_price
+
     vix = get_spot_price("^VIX")
     spy_spot = float(spy_history["close"].iloc[-1])
     spy_sma_20 = float(spy_history["close"].tail(20).mean())

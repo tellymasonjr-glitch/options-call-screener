@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 from analytics.macro import MacroEnvironment
-from data.cached_fetch import get_spot_price
-from screener import ScanOutput, TickerResult
+
+if TYPE_CHECKING:
+    from screener import ScanOutput, TickerResult
 
 
 def _safe_float(val: object, default: float = 0.0) -> float:
@@ -60,6 +61,8 @@ def _garch_payload(result: TickerResult) -> dict[str, Any]:
 
 
 def _macro_indices() -> dict[str, float]:
+    from data.cached_fetch import get_spot_price
+
     indices: dict[str, float] = {}
     for sym in ("SPY", "QQQ", "IWM"):
         try:
