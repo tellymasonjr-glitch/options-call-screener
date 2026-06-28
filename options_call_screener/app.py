@@ -24,7 +24,7 @@ from config import DEFAULT_BANKROLL
 from ui.snapshot_bar import render_scan_snapshot_bar
 from ui.trade_journal import render_risk_dashboard
 
-APP_VERSION = "5.5.4"
+APP_VERSION = "5.5.5"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(
@@ -92,6 +92,7 @@ def main() -> None:
             "results": results,
             "macro": macro,
             "snapshot": snapshot,
+            "include_0dte": config.min_dte == 0,
         }
 
     last_scan = st.session_state.get("last_scan")
@@ -108,6 +109,7 @@ def main() -> None:
     render_results(
         last_scan["results"],
         macro=last_scan.get("macro"),
+        include_0dte=bool(last_scan.get("include_0dte")),
         execution_locked=execution_locked,
     )
 

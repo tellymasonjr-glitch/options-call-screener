@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any
 
 import pandas as pd
 import yfinance as yf
 
 from analytics.greeks import call_greeks
+from data.trading_calendar import market_today
 from data.yf_utils import call_with_retry
 
 
@@ -71,8 +72,28 @@ def get_price_history(ticker: str) -> pd.DataFrame:
 
 
 def dte_from_expiration(expiration: str) -> int:
-    exp_date = datetime.strptime(expiration, "%Y-%m-%d").date()
-    return (exp_date - date.today()).days
+    exp_date = datetime.strptime(expiration[:10], "%Y-%m-%d").date()
+    return (exp_date - market_today()).days
+
+
+def list_near_term_expirations(ticker: str, max_dte: int = 14) -> list[tuple[str, int]]:
+    """Return (expiration, dte) pairs for diagnostics when same-day chain is empty."""
+    t = _ticker_obj(ticker)
+
+    def _load_expirations() -> list[str]:
+        return list(t.options or [])
+
+    try:
+        expirations = call_with_retry(_load_expirations, base_delay_sec=3.0)
+    except Exception:
+        return []
+
+    out: list[tuple[str, int]] = []
+    for exp in expirations:
+        dte = dte_from_expiration(exp)
+        if 0 <= dte <= max_dte:
+            out.append((exp[:10], dte))
+    return sorted(out, key=lambda x: x[1])
 
 
 def fetch_call_contracts(

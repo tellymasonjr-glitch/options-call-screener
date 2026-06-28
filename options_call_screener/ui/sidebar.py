@@ -170,8 +170,9 @@ def render_sidebar() -> ScanConfig | None:
     )
     if dte_range[0] == 0:
         st.sidebar.warning(
-            "Same-day (0DTE) mode is on — those contracts use a separate quick-scalp score, "
-            f"not long-term confidence. Regular ideas still scan {CONVICTION_MIN_DTE}–{dte_range[1]} days out."
+            "Same-day (0DTE) mode is on — separate quick-scalp list at the bottom. "
+            f"Regular ideas still scan {CONVICTION_MIN_DTE}–{dte_range[1]} days out. "
+            "**Tip:** same-day options work best on **SPY, QQQ, AAPL, NVDA** — many budget tickers only have weekly expiries."
         )
 
     risk_profile = st.sidebar.selectbox(

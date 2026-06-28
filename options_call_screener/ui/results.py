@@ -389,8 +389,12 @@ def render_bottom_results(
             "or switching to a bolder risk setting."
         )
         if include_0dte:
+            total_scanned = sum(r.contracts_scanned_0dte for r in (results or []))
+            total_passed = sum(r.contracts_passed_0dte for r in (results or []))
             st.caption(
-                "Same-day mode was on — many 0DTE contracts fail volume or spread checks."
+                f"Same-day mode was on — scanned **{total_scanned}** contracts; "
+                f"**{total_passed}** passed filters. Many tickers only have **weekly** options. "
+                "Try **SPY, QQQ, AAPL, or NVDA** on a US trading day."
             )
         return
 
@@ -411,6 +415,17 @@ def render_bottom_results(
 
     if include_0dte:
         st.divider()
+        if scalper_ranked.empty:
+            total_scanned = sum(r.contracts_scanned_0dte for r in (results or []))
+            total_passed = sum(r.contracts_passed_0dte for r in (results or []))
+            st.info(
+                f"Same-day scalp list is empty — scanned **{total_scanned}** contracts; "
+                f"**{total_passed}** passed filters. "
+                "Same-day options need a **US trading day** and tickers with **daily** expiries "
+                "(SPY, QQQ, AAPL, NVDA). Budget names like F/SOFI often only expire weekly."
+            )
+            for note in [r.scalper_note for r in (results or []) if r.scalper_note][:4]:
+                st.caption(note)
         if not scalper_ranked.empty:
             st.download_button(
                 "Download same-day scalps (CSV)",
@@ -726,7 +741,7 @@ def _render_pick_table(
     )
 
 
-def render_ticker_tab(result: TickerResult) -> None:
+def render_ticker_tab(result: TickerResult, *, include_0dte: bool = False) -> None:
     if result.error:
         if is_rate_limit_message(result.error):
             st.error(f"{result.ticker}: Yahoo rate limit — data fetch paused temporarily.")
@@ -843,11 +858,13 @@ def render_ticker_tab(result: TickerResult) -> None:
         f"Longer-term scan: looked at **{result.contracts_scanned}** contracts; "
         f"**{result.contracts_passed}** passed your filters."
     )
-    if result.contracts_scanned_0dte or not result.scalper_picks.empty:
+    if include_0dte:
         st.write(
             f"Same-day scan: **{result.contracts_scanned_0dte}** contracts; "
             f"**{result.contracts_passed_0dte}** passed quick-scalp filters."
         )
+        if result.contracts_scanned_0dte == 0 and result.scalper_note:
+            st.info(result.scalper_note)
 
     if result.picks.empty and result.scalper_picks.empty:
         st.info(
@@ -966,6 +983,7 @@ def render_results(
     results: list[TickerResult],
     macro: MacroEnvironment | None = None,
     *,
+    include_0dte: bool = False,
     execution_locked: bool = False,
 ) -> None:
     if macro is not None:
@@ -976,7 +994,6 @@ def render_results(
 
     ranked = _combine_ranked_picks(results)
     scalper_ranked = _combine_scalper_picks(results)
-    include_0dte = any(r.contracts_scanned_0dte > 0 for r in results)
 
     st.divider()
     st.subheader(DEEP_DIVE_TITLE)
@@ -990,7 +1007,7 @@ def render_results(
         key="deep_dive_ticker",
         help="Pick one symbol — full-width Health Check, ranked ideas, and Payoff X-Ray below.",
     )
-    render_ticker_tab(by_ticker[selected])
+    render_ticker_tab(by_ticker[selected], include_0dte=include_0dte)
 
     render_bottom_results(
         ranked,
