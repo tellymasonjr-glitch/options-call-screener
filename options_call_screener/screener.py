@@ -31,12 +31,19 @@ from config import (
     MC_MAX_DRAWDOWN_PCT,
     MC_SIMULATIONS,
     SCAN_TICKER_DELAY_SEC,
+    SCALPER_FALLBACK_MAX_DTE,
 )
-from data.cached_fetch import fetch_call_contracts, fetch_earnings, fetch_news, get_price_history
+from data.cached_fetch import (
+    fetch_call_contracts,
+    fetch_earnings,
+    fetch_news,
+    fetch_scalper_contracts,
+    get_price_history,
+)
+from data.market_data import list_near_term_expirations
 from data.earnings import earnings_hard_block, expiration_near_earnings, upcoming_earnings_dates
 from analytics.dividend_gate import fetch_ex_dividend_dates
 from data.fundamentals import fetch_dividend_yield, fetch_sector
-from data.market_data import list_near_term_expirations
 from data.news_data import analyze_sentiment
 from data.trading_calendar import is_us_weekday
 
@@ -73,6 +80,8 @@ class TickerResult:
     wheel_note: str = ""
     sector: str = ""
     scalper_note: str = ""
+    scalper_mode: str = ""
+    scalper_target_dte: int | None = None
 
 
 def _enrich_picks(
@@ -119,28 +128,33 @@ class ScanOutput:
     macro: MacroEnvironment
 
 
-def _scalper_empty_note(ticker: str) -> str:
-    if not is_us_weekday():
-        return (
-            f"**{ticker}:** Markets are closed (weekend). "
-            "Same-day (0DTE) options only exist on US trading days."
-        )
-    near = list_near_term_expirations(ticker)
+def _scalper_empty_note(ticker: str, target_dte: int | None = None) -> str:
+    near = list_near_term_expirations(ticker, max_dte=SCALPER_FALLBACK_MAX_DTE)
     if not near:
         return (
             f"**{ticker}:** Yahoo returned no near-term option expirations. "
             "Try again after a short wait (rate limits) or pick a more liquid symbol."
         )
     nearest_exp, nearest_dte = near[0]
+    if target_dte is not None and target_dte > 0:
+        return (
+            f"**{ticker}:** Found expiries **{target_dte} day(s) out** ({nearest_exp}) but "
+            "no calls passed volume, spread, or delta filters. Try raising max cost or a bolder risk setting."
+        )
+    if not is_us_weekday():
+        return (
+            f"**{ticker}:** Markets are closed (weekend). "
+            f"Nearest expiry is **{nearest_dte} day(s) out** ({nearest_exp}) — "
+            "re-scan on a US trading day or after Yahoo refreshes chains."
+        )
     if nearest_dte > 0:
         return (
-            f"**{ticker}:** No contracts expire **today** (US Eastern). "
-            f"Nearest expiry is **{nearest_dte} day(s) out** ({nearest_exp}). "
-            "Many budget tickers only have **weekly** options — try **SPY, QQQ, AAPL, or NVDA** for same-day scalps."
+            f"**{ticker}:** No same-day expiry today. Nearest is **{nearest_dte} day(s) out** "
+            f"({nearest_exp}) but Yahoo returned no usable call chain."
         )
     return (
         f"**{ticker}:** Today is an expiry date but Yahoo returned no call chain. "
-        "Try again in a few minutes or pick a more liquid symbol."
+        "Try again in a few minutes."
     )
 
 
@@ -248,8 +262,12 @@ def scan_ticker(
         scanned_0dte = 0
         passed_0dte = 0
         scalper_note = ""
+        scalper_mode = ""
+        scalper_target_dte: int | None = None
         if include_0dte:
-            raw_0dte = fetch_call_contracts(ticker, 0, 0, spot)
+            raw_0dte, scalper_target_dte, scalper_mode = fetch_scalper_contracts(
+                ticker, spot, fallback_max_dte=SCALPER_FALLBACK_MAX_DTE
+            )
             scanned_0dte = len(raw_0dte)
             delta_0dte_min, delta_0dte_max = DELTA_BOUNDS_0DTE
             filtered_0dte: list[dict[str, Any]] = []
@@ -264,15 +282,25 @@ def scan_ticker(
             scalper_picks = tag_scalper_picks(scored_0dte, config.picks_per_ticker)
             if not scalper_picks.empty:
                 scalper_picks["rationale"] = scalper_picks.apply(
-                    lambda row: build_scalper_rationale(row, spot, profile), axis=1
+                    lambda row: build_scalper_rationale(
+                        row, spot, profile, target_dte=scalper_target_dte
+                    ),
+                    axis=1,
                 )
+                if scalper_mode == "next_session":
+                    scalper_note = (
+                        f"No same-day chain today — used **tomorrow's** expiry "
+                        f"({scalper_target_dte} DTE) for quick-scalp ranking."
+                    )
+                elif scalper_mode == "near_term" and scalper_target_dte:
+                    scalper_note = (
+                        f"No same-day chain today — used nearest expiry "
+                        f"**{scalper_target_dte} day(s) out** for quick-scalp ranking."
+                    )
             elif scanned_0dte == 0:
-                scalper_note = _scalper_empty_note(ticker)
+                scalper_note = _scalper_empty_note(ticker, scalper_target_dte)
             elif passed_0dte == 0:
-                scalper_note = (
-                    f"Found **{scanned_0dte}** same-day contracts but none passed volume, "
-                    f"spread, or delta filters. Try raising max cost or a bolder risk setting."
-                )
+                scalper_note = _scalper_empty_note(ticker, scalper_target_dte)
 
         return TickerResult(
             ticker=ticker,
@@ -289,6 +317,8 @@ def scan_ticker(
             contracts_passed_0dte=passed_0dte,
             wheel_note=wheel_note,
             scalper_note=scalper_note,
+            scalper_mode=scalper_mode,
+            scalper_target_dte=scalper_target_dte,
         )
     except Exception as exc:
         return TickerResult(

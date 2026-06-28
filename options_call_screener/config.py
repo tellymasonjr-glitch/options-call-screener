@@ -24,6 +24,8 @@ MIN_OPEN_INTEREST_0DTE = 20
 MIN_VOLUME_0DTE = 50
 MAX_SPREAD_PCT_0DTE = 0.28
 DELTA_BOUNDS_0DTE = (0.20, 0.75)
+# When today has no expiry, scan nearest session up to this many days out (weekend → Monday).
+SCALPER_FALLBACK_MAX_DTE = 3
 
 SCALPER_WEIGHTS = {
     "volume": 0.35,

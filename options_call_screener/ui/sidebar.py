@@ -194,8 +194,8 @@ def render_sidebar() -> ScanConfig | None:
     )
     if dte_range[0] == 0 and dte_range[1] == 0:
         st.sidebar.warning(
-            "Pure **0DTE scalp** mode — only same-day contracts are scanned (no longer-dated ideas). "
-            "Use on a **US trading day** with liquid names like SPY, QQQ, AAPL, NVDA."
+            "Pure **quick-scalp** mode — scans same-day options first, then **tomorrow** "
+            "(or the next session) if today has no chain. Longer-dated conviction ideas are off."
         )
     elif dte_range[0] == 0:
         st.sidebar.warning(

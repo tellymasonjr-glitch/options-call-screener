@@ -419,10 +419,10 @@ def render_bottom_results(
             total_scanned = sum(r.contracts_scanned_0dte for r in (results or []))
             total_passed = sum(r.contracts_passed_0dte for r in (results or []))
             st.info(
-                f"Same-day scalp list is empty — scanned **{total_scanned}** contracts; "
+                f"Quick-scalp list is empty — scanned **{total_scanned}** contracts; "
                 f"**{total_passed}** passed filters. "
-                "Same-day options need a **US trading day** and tickers with **daily** expiries "
-                "(SPY, QQQ, AAPL, NVDA). Budget names like F/SOFI often only expire weekly."
+                "The scanner tries **today first**, then **tomorrow / next session** when today has no chain. "
+                "Use **SPY, QQQ, AAPL, NVDA** on a US trading day."
             )
             for note in [r.scalper_note for r in (results or []) if r.scalper_note][:4]:
                 st.caption(note)
@@ -741,6 +741,15 @@ def _render_pick_table(
     )
 
 
+def _scalper_scan_label(result: TickerResult) -> str:
+    dte = result.scalper_target_dte
+    if result.scalper_mode == "next_session" or dte == 1:
+        return "Quick-scalp scan (tomorrow's expiry)"
+    if result.scalper_mode == "near_term" and dte:
+        return f"Quick-scalp scan ({dte} DTE — nearest session)"
+    return "Same-day scan"
+
+
 def render_ticker_tab(result: TickerResult, *, include_0dte: bool = False) -> None:
     if result.error:
         if is_rate_limit_message(result.error):
@@ -854,17 +863,26 @@ def render_ticker_tab(result: TickerResult, *, include_0dte: bool = False) -> No
             with st.expander("Wheel strategy check (income alternative)", expanded=False):
                 st.markdown(result.wheel_note)
 
-    st.write(
-        f"Longer-term scan: looked at **{result.contracts_scanned}** contracts; "
-        f"**{result.contracts_passed}** passed your filters."
-    )
-    if include_0dte:
+    if include_0dte and result.contracts_scanned == 0 and result.contracts_passed == 0:
+        st.caption(
+            "Longer-term scan skipped — quick-scalp / 0DTE-only mode (slider at 0–0 days)."
+        )
+    else:
         st.write(
-            f"Same-day scan: **{result.contracts_scanned_0dte}** contracts; "
+            f"Longer-term scan: looked at **{result.contracts_scanned}** contracts; "
+            f"**{result.contracts_passed}** passed your filters."
+        )
+    if include_0dte:
+        label = _scalper_scan_label(result)
+        st.write(
+            f"{label}: **{result.contracts_scanned_0dte}** contracts; "
             f"**{result.contracts_passed_0dte}** passed quick-scalp filters."
         )
-        if result.contracts_scanned_0dte == 0 and result.scalper_note:
-            st.info(result.scalper_note)
+        if result.scalper_note:
+            if result.scalper_picks.empty:
+                st.info(result.scalper_note)
+            else:
+                st.caption(result.scalper_note)
 
     if result.picks.empty and result.scalper_picks.empty:
         st.info(

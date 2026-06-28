@@ -96,6 +96,39 @@ def list_near_term_expirations(ticker: str, max_dte: int = 14) -> list[tuple[str
     return sorted(out, key=lambda x: x[1])
 
 
+def fetch_scalper_contracts(
+    ticker: str,
+    spot: float | None = None,
+    *,
+    fallback_max_dte: int = 3,
+) -> tuple[list[dict[str, Any]], int | None, str]:
+    """
+    Quick-scalp chain: prefer today's expiry (0DTE), else nearest upcoming session.
+
+    Returns (contracts, target_dte, mode) where mode is same_day, next_session,
+    near_term, or none.
+    """
+    contracts_today = fetch_call_contracts(ticker, 0, 0, spot=spot)
+    if contracts_today:
+        return contracts_today, 0, "same_day"
+
+    near = list_near_term_expirations(ticker, max_dte=fallback_max_dte)
+    upcoming = sorted({dte for _, dte in near if dte > 0})
+    if not upcoming:
+        return [], None, "none"
+
+    for target_dte in upcoming:
+        contracts = fetch_call_contracts(ticker, target_dte, target_dte, spot=spot)
+        if contracts:
+            if target_dte == 1:
+                mode = "next_session"
+            else:
+                mode = "near_term"
+            return contracts, target_dte, mode
+
+    return [], upcoming[0], "none"
+
+
 def fetch_call_contracts(
     ticker: str,
     min_dte: int,

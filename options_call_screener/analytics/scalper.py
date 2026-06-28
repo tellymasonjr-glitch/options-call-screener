@@ -81,11 +81,28 @@ def tag_scalper_picks(df: pd.DataFrame, picks: int) -> pd.DataFrame:
     return result
 
 
-def build_scalper_rationale(row: pd.Series, spot: float, profile: StockProfile | None) -> str:
+def build_scalper_rationale(
+    row: pd.Series,
+    spot: float,
+    profile: StockProfile | None,
+    *,
+    target_dte: int | None = None,
+) -> str:
+    dte = int(target_dte if target_dte is not None else row.get("dte", 0) or 0)
     strike = float(row["strike"])
     ask = float(row.get("ask", 0) or 0)
     cost = ask * 100
     gap = strike - spot
+
+    if dte == 0:
+        expiry_line = "You are buying a call that expires **today** (same-day)."
+        time_pressure = "there are only **hours left** for the bet to pay off"
+    elif dte == 1:
+        expiry_line = "You are buying a call that expires **tomorrow** (next session)."
+        time_pressure = "you need a move **by tomorrow's close**"
+    else:
+        expiry_line = f"You are buying a call that expires in **{dte} days** (nearest quick-scalp expiry)."
+        time_pressure = f"you need a move within **{dte} days**"
 
     if gap > 0:
         move_need = (
@@ -96,54 +113,43 @@ def build_scalper_rationale(row: pd.Series, spot: float, profile: StockProfile |
     else:
         move_need = (
             f"The stock is at **${spot:.2f}**, at or above the **${strike:.0f}** strike — "
-            f"a helpful start, but there are only **hours left** for the bet to pay off."
+            f"a helpful start, but {time_pressure}."
         )
 
     vol_note = ""
     if profile and profile.volume_ratio >= 1.25:
         vol_note = (
-            "**Activity today:** Trading volume is **higher than usual**. That often means "
-            "sharper moves — good if you are right, painful if the stock stalls or reverses."
+            "**Activity:** Trading volume is **higher than usual** — sharper moves, more whipsaw."
         )
     elif profile:
-        vol_note = (
-            "**Activity today:** Volume is about **normal**. Moves may be slower unless "
-            "headlines or the broad market heat up."
-        )
+        vol_note = "**Activity:** Volume is about **normal** for this name."
 
     spread = float(row.get("spread_pct", 0) or 0)
     if spread >= 0.15:
         spread_note = (
             "**Getting in and out:** The gap between buyers and sellers is **wide** "
-            f"(~{spread:.0%} of the price). You may give up meaningful money on entry and exit."
+            f"(~{spread:.0%} of the price)."
         )
     elif spread >= 0.08:
-        spread_note = (
-            "**Getting in and out:** The bid/ask gap is **moderately wide** — use a limit order "
-            "and do not chase."
-        )
+        spread_note = "**Getting in and out:** Bid/ask gap is **moderately wide** — use a limit order."
     else:
-        spread_note = "**Getting in and out:** Spreads look **reasonable** for a same-day contract."
+        spread_note = "**Getting in and out:** Spreads look **reasonable**."
 
     score = float(row.get("scalper_score", 0) or 0)
     if score >= 70:
-        verdict = (
-            "This ranks among the **stronger same-day setups** in the scan — but same-day options "
-            "are still unforgiving. Have an exit plan before you enter."
-        )
+        verdict = "Stronger quick-scalp setup in this scan — still have an exit plan before you enter."
     elif score >= 50:
         verdict = (
-            "**Decent for a quick trade** if you understand that you can lose the full "
-            f"${cost:,.0f} per contract quickly. Not a hold-and-hope idea."
+            f"Decent quick trade if you accept losing the full ${cost:,.0f} per contract is possible."
         )
     else:
-        verdict = "**Lower ranked** same-day idea — extra caution; consider paper-trading first."
+        verdict = "Lower ranked quick-scalp idea — extra caution."
 
+    label = "Quick-scalp" if dte != 0 else "Same-day"
     return (
-        f"**Same-day trade on {row['ticker']}:** You are buying a call that expires **today**. "
+        f"**{label} trade on {row['ticker']}:** {expiry_line} "
         f"You pay **${ask:.2f}/share** (**${cost:,.0f} per contract**). {move_need}\n\n"
         f"{vol_note}\n\n{spread_note}\n\n"
-        f"**Why it ranked here:** Same-day picks are scored on **how actively the contract "
-        f"trades** and **how sensitive it is to price moves today** — not on long-term trend or "
-        f"headlines (those barely matter intraday). **Score {score:.0f}/100.** {verdict}"
+        f"**Why it ranked here:** Quick-scalp picks favor **active contracts** sensitive to "
+        f"near-term price moves — not long-term trend. **Score {score:.0f}/100.** {verdict}"
     )
