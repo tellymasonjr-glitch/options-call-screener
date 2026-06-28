@@ -22,6 +22,10 @@ from config import (
     MIN_BUDGET,
     MIN_BASE_RISK_PCT,
     MIN_DTE_LIMIT,
+    SAME_DAY_SCALP_DTE_RANGE,
+    SAME_DAY_SCALP_MAX_COST,
+    SAME_DAY_SCALP_PICKS,
+    SAME_DAY_SCALP_TICKERS,
     SCAN_WARN_TICKERS,
     STOCK_PRESETS,
     TICKER_OPTIONS,
@@ -62,17 +66,29 @@ def _init_scan_ticker_state() -> None:
         st.session_state._prev_playlists = []
 
 
-def _apply_pending_playlist_reset() -> None:
-    """Apply reset before playlist widgets mount (Streamlit widget-state safe)."""
-    action = st.session_state.pop("_playlist_reset", None)
+def _apply_pending_sidebar_preset() -> None:
+    """Apply preset before sidebar widgets mount (Streamlit widget-state safe)."""
+    action = st.session_state.pop("_sidebar_preset", None)
     if action == "default":
         st.session_state.selected_companies = list(DEFAULT_TICKERS)
         st.session_state.scan_playlists = []
         st.session_state._prev_playlists = []
+        st.session_state.max_cost_per_trade = DEFAULT_BUDGET
+        st.session_state.dte_range_slider_v2 = (DEFAULT_MIN_DTE, DEFAULT_MAX_DTE)
+        st.session_state.picks_per_ticker = DEFAULT_PICKS_PER_TICKER
     elif action == "clear":
         st.session_state.selected_companies = []
         st.session_state.scan_playlists = []
         st.session_state._prev_playlists = []
+    elif action == "same_day_scalp":
+        st.session_state.selected_companies = [
+            t for t in SAME_DAY_SCALP_TICKERS if t in TICKER_OPTIONS
+        ]
+        st.session_state.scan_playlists = []
+        st.session_state._prev_playlists = []
+        st.session_state.max_cost_per_trade = SAME_DAY_SCALP_MAX_COST
+        st.session_state.dte_range_slider_v2 = SAME_DAY_SCALP_DTE_RANGE
+        st.session_state.picks_per_ticker = SAME_DAY_SCALP_PICKS
 
 
 def _on_playlists_changed() -> None:
@@ -86,16 +102,22 @@ def _on_playlists_changed() -> None:
 def _render_playlist_preloaders() -> None:
     st.sidebar.markdown("**Smart ticker preloaders**")
 
-    # Reset buttons queue an action; state is applied on the next rerun before widgets draw.
-    c1, c2 = st.sidebar.columns(2)
+    # Preset buttons queue an action; state is applied on the next rerun before widgets draw.
+    c1, c2, c3 = st.sidebar.columns(3)
     if c1.button("Default batch", help="Reset to F, SOFI, HOOD, CCL, SNAP"):
-        st.session_state._playlist_reset = "default"
+        st.session_state._sidebar_preset = "default"
         st.rerun()
     if c2.button("Clear all", help="Empty the scan list"):
-        st.session_state._playlist_reset = "clear"
+        st.session_state._sidebar_preset = "clear"
         st.rerun()
-
-    _apply_pending_playlist_reset()
+    if c3.button(
+        "Same day scalp",
+        help=(
+            "SPY, QQQ, AAPL, NVDA, IWM · $100 max cost · 0DTE only · 5 ideas per stock"
+        ),
+    ):
+        st.session_state._sidebar_preset = "same_day_scalp"
+        st.rerun()
 
     st.sidebar.multiselect(
         "Select playlists to load",
@@ -119,6 +141,7 @@ def render_sidebar() -> ScanConfig | None:
     st.sidebar.header(SIDEBAR_SETUP)
 
     _init_scan_ticker_state()
+    _apply_pending_sidebar_preset()
     _render_playlist_preloaders()
 
     current_tickers = list(st.session_state.get("selected_companies", []))
@@ -158,6 +181,7 @@ def render_sidebar() -> ScanConfig | None:
         value=DEFAULT_BUDGET,
         step=50,
         help=HELP_MAX_COST,
+        key="max_cost_per_trade",
     )
 
     dte_range = st.sidebar.slider(
@@ -168,7 +192,12 @@ def render_sidebar() -> ScanConfig | None:
         help=HELP_DTE,
         key="dte_range_slider_v2",
     )
-    if dte_range[0] == 0:
+    if dte_range[0] == 0 and dte_range[1] == 0:
+        st.sidebar.warning(
+            "Pure **0DTE scalp** mode — only same-day contracts are scanned (no longer-dated ideas). "
+            "Use on a **US trading day** with liquid names like SPY, QQQ, AAPL, NVDA."
+        )
+    elif dte_range[0] == 0:
         st.sidebar.warning(
             "Same-day (0DTE) mode is on — separate quick-scalp list at the bottom. "
             f"Regular ideas still scan {CONVICTION_MIN_DTE}–{dte_range[1]} days out. "
@@ -195,6 +224,7 @@ def render_sidebar() -> ScanConfig | None:
         max_value=MAX_PICKS_PER_TICKER,
         value=DEFAULT_PICKS_PER_TICKER,
         help=HELP_TOP_IDEAS,
+        key="picks_per_ticker",
     )
 
     st.sidebar.subheader(SIDEBAR_RISK)
