@@ -15,6 +15,18 @@ DISCLAIMER_FRIENDLY = (
     "Never risk money you need for bills."
 )
 
+RATE_LIMIT_TITLE = "Yahoo Finance rate limit (temporary)"
+RATE_LIMIT_BODY = (
+    "Streamlit Cloud shares Yahoo's data pipe with many users. When you see "
+    "**Too Many Requests**, nothing is broken with your tickers — Yahoo paused us for a few minutes.\n\n"
+    "**What to do:**\n"
+    "1. Wait **2–3 minutes** (do not hammer Scan).\n"
+    "2. Scan **1–3 tickers** at a time (Budget Momentum batch: F, SOFI, SNAP).\n"
+    "3. Tap **Clear cache & reload**, then scan again — successful runs cache for **10 minutes**.\n"
+    "4. Large-cap names (AAPL, MSFT, IBM) need extra option-chain calls; start with cheaper tickers if limits persist.\n\n"
+    "The *AAPL: No earnings dates found* log line is a harmless Yahoo quirk — AAPL is not delisted."
+)
+
 # --- Sidebar ---
 SIDEBAR_SETUP = "Your Trade Setup"
 SIDEBAR_RISK = "Risk Manager & Budget Calculator"

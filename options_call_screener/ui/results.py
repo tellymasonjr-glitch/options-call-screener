@@ -12,6 +12,7 @@ import streamlit as st
 from analytics.macro import MacroEnvironment
 from analytics.plain_rationale import build_quick_list_tooltip
 from analytics.payoff_viz import build_payoff_chart
+from data.yf_utils import is_rate_limit_message
 from screener import TickerResult
 from ui.trade_journal import render_execute_button
 from ui.column_config import CONVICTION_COLUMN_CONFIG, SCALPER_COLUMN_CONFIG
@@ -49,6 +50,8 @@ from ui.copy import (
     WHY_VANNA,
     SCAN_SUMMARY_INTRO,
     SCAN_SUMMARY_TITLE,
+    RATE_LIMIT_BODY,
+    RATE_LIMIT_TITLE,
     DEEP_DIVE_INTRO,
     DEEP_DIVE_TITLE,
 )
@@ -495,15 +498,21 @@ def _sorted_results(results: list[TickerResult]) -> list[TickerResult]:
     return sorted(results, key=lambda r: (-_best_confidence(r), r.ticker))
 
 
+def _render_rate_limit_help() -> None:
+    st.warning(f"**{RATE_LIMIT_TITLE}**")
+    st.markdown(RATE_LIMIT_BODY)
+
+
 def _build_scan_summary_df(results: list[TickerResult]) -> pd.DataFrame:
     """Fund Manager view — one row per ticker, sortable in st.dataframe."""
     rows: list[dict] = []
     for r in results:
         if r.error:
+            status = "Rate limited" if is_rate_limit_message(r.error) else "Error"
             rows.append(
                 {
                     "Ticker": r.ticker,
-                    "Status": "Error",
+                    "Status": status,
                     "Price": None,
                     "News tone": None,
                     "Sector": r.sector or "—",
@@ -568,6 +577,9 @@ def render_scan_summary_table(results: list[TickerResult]) -> None:
     if summary.empty:
         st.info("No scan results to summarize.")
         return
+
+    if any(is_rate_limit_message(r.error or "") for r in results if r.error):
+        _render_rate_limit_help()
 
     st.dataframe(
         summary,
@@ -716,7 +728,11 @@ def _render_pick_table(
 
 def render_ticker_tab(result: TickerResult) -> None:
     if result.error:
-        st.error(f"{result.ticker}: {result.error}")
+        if is_rate_limit_message(result.error):
+            st.error(f"{result.ticker}: Yahoo rate limit — data fetch paused temporarily.")
+            _render_rate_limit_help()
+        else:
+            st.error(f"{result.ticker}: {result.error}")
         return
 
     profile = result.profile

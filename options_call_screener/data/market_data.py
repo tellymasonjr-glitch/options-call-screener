@@ -90,7 +90,7 @@ def fetch_call_contracts(
         return list(t.options or [])
 
     try:
-        expirations = call_with_retry(_load_expirations)
+        expirations = call_with_retry(_load_expirations, base_delay_sec=4.0)
     except Exception as exc:
         raise RuntimeError(
             f"Could not load options expirations for {ticker}: {exc}"
@@ -107,7 +107,7 @@ def fetch_call_contracts(
             return t.option_chain(expiration)
 
         try:
-            chain = call_with_retry(_load_chain)
+            chain = call_with_retry(_load_chain, base_delay_sec=4.0)
         except Exception:
             continue
 

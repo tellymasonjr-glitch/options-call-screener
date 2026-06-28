@@ -27,7 +27,11 @@ def is_rate_limit_error(exc: BaseException) -> bool:
     return "ratelimit" in name or "rate limit" in text or "too many requests" in text
 
 
-def throttle(min_interval_sec: float = 0.45) -> None:
+def is_rate_limit_message(message: str) -> bool:
+    return is_rate_limit_error(RuntimeError(message))
+
+
+def throttle(min_interval_sec: float = 0.75) -> None:
     """Space out Yahoo requests to avoid burst rate limits on Streamlit Cloud."""
     global _last_request_at
     with _lock:
@@ -41,8 +45,8 @@ def throttle(min_interval_sec: float = 0.45) -> None:
 def call_with_retry(
     func: Callable[..., T],
     *args,
-    retries: int = 4,
-    base_delay_sec: float = 2.0,
+    retries: int = 5,
+    base_delay_sec: float = 3.0,
     **kwargs,
 ) -> T:
     last_err: BaseException | None = None
