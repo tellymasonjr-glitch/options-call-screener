@@ -24,7 +24,7 @@ from config import DEFAULT_BANKROLL
 from ui.snapshot_bar import render_scan_snapshot_bar
 from ui.trade_journal import render_risk_dashboard
 
-APP_VERSION = "5.5.7"
+APP_VERSION = "5.5.8"
 APP_ROOT = str(ROOT)
 
 st.set_page_config(
@@ -93,6 +93,8 @@ def main() -> None:
             "macro": macro,
             "snapshot": snapshot,
             "include_0dte": config.min_dte == 0,
+            "scan_min_dte": config.min_dte,
+            "scan_max_dte": config.max_dte,
         }
 
     last_scan = st.session_state.get("last_scan")
@@ -106,10 +108,25 @@ def main() -> None:
 
     if last_scan.get("snapshot") is not None:
         render_scan_snapshot_bar(last_scan["snapshot"])
+
+    sidebar_dte = st.session_state.get("dte_range_slider_v2")
+    last_max = last_scan.get("scan_max_dte")
+    last_min = last_scan.get("scan_min_dte")
+    if sidebar_dte and last_max is not None and (
+        int(sidebar_dte[0]) != int(last_min or sidebar_dte[0])
+        or int(sidebar_dte[1]) != int(last_max)
+    ):
+        st.warning(
+            "Sidebar **time limit** changed since the last scan. "
+            "Click **Scan for Trading Ideas** again — cached results still reflect the prior settings."
+        )
+
     render_results(
         last_scan["results"],
         macro=last_scan.get("macro"),
         include_0dte=bool(last_scan.get("include_0dte")),
+        scan_min_dte=last_scan.get("scan_min_dte"),
+        scan_max_dte=last_scan.get("scan_max_dte"),
         execution_locked=execution_locked,
     )
 

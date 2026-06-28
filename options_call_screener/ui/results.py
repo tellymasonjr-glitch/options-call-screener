@@ -376,6 +376,7 @@ def render_bottom_results(
     scalper_ranked: pd.DataFrame,
     *,
     include_0dte: bool,
+    scan_max_dte: int | None = None,
     results: list[TickerResult] | None = None,
     execution_locked: bool = False,
 ) -> None:
@@ -424,7 +425,11 @@ def render_bottom_results(
                 "The scanner tries **today first**, then **tomorrow / next session** when today has no chain. "
                 "Use **SPY, QQQ, AAPL, NVDA** on a US trading day."
             )
-            for note in [r.scalper_note for r in (results or []) if r.scalper_note][:4]:
+            for note in [
+                n
+                for r in (results or [])
+                if (n := getattr(r, "scalper_note", "") or "")
+            ][:4]:
                 st.caption(note)
         if not scalper_ranked.empty:
             st.download_button(
@@ -742,15 +747,28 @@ def _render_pick_table(
 
 
 def _scalper_scan_label(result: TickerResult) -> str:
-    dte = result.scalper_target_dte
-    if result.scalper_mode == "next_session" or dte == 1:
+    dte = getattr(result, "scalper_target_dte", None)
+    mode = getattr(result, "scalper_mode", "") or ""
+    if mode == "next_session" or dte == 1:
         return "Quick-scalp scan (tomorrow's expiry)"
-    if result.scalper_mode == "near_term" and dte:
+    if mode == "near_term" and dte:
         return f"Quick-scalp scan ({dte} DTE — nearest session)"
     return "Same-day scan"
 
 
-def render_ticker_tab(result: TickerResult, *, include_0dte: bool = False) -> None:
+def _conviction_scan_skipped(include_0dte: bool, scan_max_dte: int | None) -> bool:
+    """True when slider max DTE is below conviction floor (pure 0–0 quick-scalp preset)."""
+    from config import CONVICTION_MIN_DTE
+
+    return bool(include_0dte and scan_max_dte is not None and scan_max_dte < CONVICTION_MIN_DTE)
+
+
+def render_ticker_tab(
+    result: TickerResult,
+    *,
+    include_0dte: bool = False,
+    scan_max_dte: int | None = None,
+) -> None:
     if result.error:
         if is_rate_limit_message(result.error):
             st.error(f"{result.ticker}: Yahoo rate limit — data fetch paused temporarily.")
@@ -863,7 +881,7 @@ def render_ticker_tab(result: TickerResult, *, include_0dte: bool = False) -> No
             with st.expander("Wheel strategy check (income alternative)", expanded=False):
                 st.markdown(result.wheel_note)
 
-    if include_0dte and result.contracts_scanned == 0 and result.contracts_passed == 0:
+    if _conviction_scan_skipped(include_0dte, scan_max_dte):
         st.caption(
             "Longer-term scan skipped — quick-scalp / 0DTE-only mode (slider at 0–0 days)."
         )
@@ -872,17 +890,23 @@ def render_ticker_tab(result: TickerResult, *, include_0dte: bool = False) -> No
             f"Longer-term scan: looked at **{result.contracts_scanned}** contracts; "
             f"**{result.contracts_passed}** passed your filters."
         )
+        if result.contracts_scanned == 0 and scan_max_dte and scan_max_dte >= 7:
+            st.caption(
+                f"Expected to scan **7–{scan_max_dte} days** out. "
+                "If this stays at zero, Yahoo may be rate-limiting — wait 2–3 minutes and re-scan fewer tickers."
+            )
     if include_0dte:
         label = _scalper_scan_label(result)
         st.write(
             f"{label}: **{result.contracts_scanned_0dte}** contracts; "
             f"**{result.contracts_passed_0dte}** passed quick-scalp filters."
         )
-        if result.scalper_note:
+        scalper_note = getattr(result, "scalper_note", "") or ""
+        if scalper_note:
             if result.scalper_picks.empty:
-                st.info(result.scalper_note)
+                st.info(scalper_note)
             else:
-                st.caption(result.scalper_note)
+                st.caption(scalper_note)
 
     if result.picks.empty and result.scalper_picks.empty:
         st.info(
@@ -1002,6 +1026,8 @@ def render_results(
     macro: MacroEnvironment | None = None,
     *,
     include_0dte: bool = False,
+    scan_min_dte: int | None = None,
+    scan_max_dte: int | None = None,
     execution_locked: bool = False,
 ) -> None:
     if macro is not None:
@@ -1025,12 +1051,17 @@ def render_results(
         key="deep_dive_ticker",
         help="Pick one symbol — full-width Health Check, ranked ideas, and Payoff X-Ray below.",
     )
-    render_ticker_tab(by_ticker[selected], include_0dte=include_0dte)
+    render_ticker_tab(
+        by_ticker[selected],
+        include_0dte=include_0dte,
+        scan_max_dte=scan_max_dte,
+    )
 
     render_bottom_results(
         ranked,
         scalper_ranked,
         include_0dte=include_0dte,
+        scan_max_dte=scan_max_dte,
         results=results,
         execution_locked=execution_locked,
     )
