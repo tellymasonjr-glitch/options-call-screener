@@ -158,7 +158,7 @@ SCAN_TICKER_DELAY_SEC = 1.0  # pause between tickers to avoid Yahoo burst limits
 SCAN_WARN_TICKERS = 6  # sidebar heads-up above this count
 
 # Same-day scalp sidebar preset (v5.5.6)
-SAME_DAY_SCALP_TICKERS = ["SPY", "QQQ", "AAPL", "NVDA", "IWM"]
+SAME_DAY_SCALP_TICKERS = ["SPY", "QQQ", "AAPL", "NVDA", "TSLA", "IWM"]
 SAME_DAY_SCALP_MAX_COST = 100
 SAME_DAY_SCALP_DTE_RANGE = (0, 0)
 SAME_DAY_SCALP_PICKS = 5

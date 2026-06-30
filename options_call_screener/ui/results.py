@@ -207,6 +207,12 @@ def _pick_confidence(row: pd.Series) -> float | None:
     return None
 
 
+def _is_scalp_row(row: pd.Series) -> bool:
+    mode = str(row.get("scan_mode") or "")
+    tag = str(row.get("tag") or "")
+    return mode == "0dte_scalper" or tag.startswith("0dte")
+
+
 def _format_pick_line(row: pd.Series, *, suffix: str = "", numbered: bool = True) -> str:
     """Paper-trade line; backslash-escape $ so Streamlit markdown does not break spacing."""
     strike = _format_strike(float(row["strike"]))
@@ -220,7 +226,8 @@ def _format_pick_line(row: pd.Series, *, suffix: str = "", numbered: bool = True
         f"expires {expiry}{suffix}"
     )
     if score is not None:
-        line += f" · confidence {score:.0f}/100"
+        score_label = "scalp score" if _is_scalp_row(row) else "confidence"
+        line += f" · {score_label} {score:.0f}/100"
     sector = row.get("sector")
     if sector and str(sector) not in ("", "Unknown", "nan"):
         line += f" · {sector}"
@@ -439,6 +446,7 @@ def render_bottom_results(
                 mime="text/csv",
                 key="download_scalper_csv",
             )
+        st.caption(WHY_SCALPER)
         render_simple_pick_list(
             scalper_ranked,
             title="Same-Day Scalp List",

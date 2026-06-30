@@ -113,7 +113,7 @@ def _render_playlist_preloaders() -> None:
     if c3.button(
         "Same day scalp",
         help=(
-            "SPY, QQQ, AAPL, NVDA, IWM · $100 max cost · 0DTE only · 5 ideas per stock"
+            "SPY, QQQ, AAPL, NVDA, TSLA, IWM · $100 max cost · 0DTE only · 5 ideas per stock"
         ),
     ):
         st.session_state._sidebar_preset = "same_day_scalp"

@@ -282,9 +282,10 @@ DEEP_DIVE_INTRO = (
     "Select a single symbol and use the full screen width for Health Check, Payoff X-Ray, and ideas."
 )
 WHY_SCALPER = (
-    "Same-day contracts scored on volume and movement, not long-term confidence. "
-    "Why it matters: 0DTE is a different game — Theta burns fast and spreads hurt more; "
-    "this list is for experienced scalps only."
+    "Quick-scalp contracts scored on **volume, spread tightness, gamma, and how close to the money** — "
+    "not the full swing conviction model (trend, news, macro). "
+    "**70+ is a strong scalp score** in this list; seeing nothing above 75 is normal because no contract "
+    "maxes every intraday pillar at once. This is a different game than 14–45 day swing picks."
 )
 
 WHY_AUTOPSY = (
