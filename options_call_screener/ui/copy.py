@@ -282,10 +282,11 @@ DEEP_DIVE_INTRO = (
     "Select a single symbol and use the full screen width for Health Check, Payoff X-Ray, and ideas."
 )
 WHY_SCALPER = (
-    "Quick-scalp contracts scored on **volume, spread tightness, gamma, and how close to the money** — "
-    "not the full swing conviction model (trend, news, macro). "
-    "**70+ is a strong scalp score** in this list; seeing nothing above 75 is normal because no contract "
-    "maxes every intraday pillar at once. This is a different game than 14–45 day swing picks."
+    "Quick-scalp score uses **volume, spread, gamma, IV spike, and near-the-money** — "
+    "not swing conviction (trend, news, macro). **There is no hard cap at 75**; a perfect "
+    "same-day SPY contract can score **90+**. Scores in the **high 60s–low 70s** usually mean "
+    "**tomorrow's expiry** (1 DTE) was used instead of today — gamma is lower one day out, "
+    "so the math tops out around there. **70+ is still a strong rank** in this list."
 )
 
 WHY_AUTOPSY = (
